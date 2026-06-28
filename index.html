@@ -1,0 +1,2403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CheckersWin</title>
+<style>
+:root{
+  --bg:#0A0A0F;--surface:#13131A;--surface2:#1C1C27;--border:#252535;
+  --accent:#C8A84B;--accent2:#A07830;--green:#27AE60;--red:#E74C3C;
+  --text:#EEE8D5;--muted:#6C6A7A;--radius:14px;
+  --sq-light:#D4A96A;--sq-dark:#7A4F2D;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  margin:0;padding:0;
+  background:var(--bg);color:var(--text);
+  font-family:'SF Pro Display',system-ui,-apple-system,sans-serif;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+.screen{
+  display:flex;flex-direction:column;
+  align-items:center;width:100%;
+  min-height:100vh;
+  padding-bottom:20px;
+}
+.screen.hidden{display:none}
+#screen-game{
+  padding-bottom:0;
+  min-height:unset;
+  height:100vh;
+  overflow:hidden;
+}
+.header{width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.header-logo{font-size:18px;font-weight:800;letter-spacing:-.5px;color:var(--accent)}
+.header-bal{background:var(--surface2);border:1px solid var(--border);border-radius:99px;
+  padding:4px 12px;font-size:13px;font-weight:600}
+.content{width:100%;padding:14px;flex:1}
+.title{font-size:24px;font-weight:800;letter-spacing:-.5px;margin-bottom:3px}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:16px}
+.section-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:8px}
+.btn{width:100%;padding:13px;border-radius:var(--radius);border:none;cursor:pointer;
+  font-size:15px;font-weight:700;font-family:inherit;transition:transform .1s,opacity .1s}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn-gold{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0A0A0F;
+  box-shadow:0 4px 20px rgba(200,168,75,.3)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-sm{padding:8px 14px;width:auto;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;margin-bottom:10px}
+.card-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;
+  border-bottom:1px solid var(--border)}
+.card-row:last-child{border-bottom:none}
+.stake-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:14px}
+.stake-chip{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
+  padding:9px 4px;text-align:center;cursor:pointer;font-family:inherit;color:var(--text);
+  transition:all .15s}
+.stake-chip.selected{border-color:var(--accent);background:rgba(200,168,75,.1);color:var(--accent)}
+.stake-chip-val{font-size:14px;font-weight:700}
+.nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--surface);
+  border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom);z-index:50}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 4px;
+  cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:inherit;
+  transition:color .15s;font-size:10px;gap:3px}
+.nav-tab.active{color:var(--accent)}
+.nav-icon{font-size:18px;line-height:1}
+
+/* ── BOARD ── */
+#board-wrap{width:100%;max-width:380px;margin:0 auto}
+.board-grid{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;
+  border:2px solid var(--accent2);border-radius:6px;overflow:hidden}
+.sq{aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative}
+.sq.light{background:var(--sq-light)}
+.sq.dark{background:var(--sq-dark)}
+.sq.selected{background:rgba(200,168,75,.55)!important}
+.sq.target{background:rgba(39,174,96,.45)!important;cursor:pointer}
+.sq.last-from{background:rgba(100,149,237,.35)!important}
+.sq.last-to{background:rgba(100,149,237,.55)!important}
+
+/* ── PIECES — чорний і білий ── */
+.piece{
+  width:82%;height:82%;border-radius:50%;cursor:pointer;
+  box-shadow:inset 0 -4px 8px rgba(0,0,0,.5),0 3px 6px rgba(0,0,0,.5);
+  position:relative;transition:transform .12s,box-shadow .12s}
+.piece:active{transform:scale(0.92)}
+.piece.white{
+  background:radial-gradient(circle at 35% 30%,#FFFFFF,#C0B8A8);
+  border:2px solid #888}
+.piece.black{
+  background:radial-gradient(circle at 35% 30%,#585858,#101010);
+  border:2px solid rgba(255,255,255,.15)}
+.piece.selectable{
+  box-shadow:0 0 0 3px var(--accent),inset 0 -4px 8px rgba(0,0,0,.5)}
+
+/* ── ДАМКА — велика корона на всю шашку ── */
+.piece.king::after{
+  content:'♛';
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:78%;line-height:1;
+  color:rgba(200,168,75,1);
+  text-shadow:0 0 6px rgba(200,168,75,.9),0 1px 3px rgba(0,0,0,.8);
+  pointer-events:none}
+.piece.white.king{border-color:var(--accent);border-width:2.5px}
+.piece.black.king{border-color:var(--accent);border-width:2.5px}
+
+.move-dot{width:34%;height:34%;border-radius:50%;
+  background:rgba(39,174,96,.75);pointer-events:none;
+  box-shadow:0 0 8px rgba(39,174,96,.5)}
+
+/* ── GAME INFO ── */
+.game-bar{width:100%;max-width:380px;margin:0 auto 5px;display:flex;gap:8px}
+.player-card{flex:1;background:var(--surface);border:1.5px solid var(--border);
+  border-radius:var(--radius);padding:8px;text-align:center;transition:all .2s}
+.player-card.active{border-color:var(--accent);background:rgba(200,168,75,.06)}
+.player-card .pname{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-card .psub{font-size:10px;color:var(--muted);margin-top:2px}
+.color-dot{width:10px;height:10px;border-radius:50%;margin:3px auto;display:inline-block}
+.color-dot.white{background:#D0C8B8;border:1px solid #888}
+.color-dot.black{background:#2A2A2A;border:1px solid rgba(255,255,255,.2)}
+.turn-bar{width:100%;max-width:380px;margin:0 auto 5px;text-align:center;font-size:13px;
+  font-weight:700;padding:7px;border-radius:var(--radius);transition:all .2s}
+.turn-bar.my-turn{background:rgba(200,168,75,.18);color:var(--accent);border:1px solid rgba(200,168,75,.35)}
+.turn-bar.op-turn{background:rgba(107,105,122,.1);color:var(--muted);border:1px solid var(--border)}
+.game-actions{width:100%;max-width:380px;margin:5px auto 0;display:flex;gap:8px;align-items:center}
+
+.spinner{width:42px;height:42px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;
+  align-items:flex-end;justify-content:center;z-index:999999}
+.modal-overlay.hidden{display:none!important}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:18px 16px 34px;
+  width:100%;max-height:88vh;overflow-y:auto}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:14px}
+.input{width:100%;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:var(--radius);color:var(--text);font-size:15px;padding:11px 14px;
+  font-family:inherit;outline:none;transition:border-color .2s}
+.input:focus{border-color:var(--accent)}
+.stat-row{display:flex;gap:10px;margin-bottom:14px}
+.stat-box{flex:1;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:11px;text-align:center}
+.stat-box .num{font-size:20px;font-weight:800;color:var(--accent)}
+.stat-box .lbl{font-size:10px;color:var(--muted);margin-top:2px}
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
+  background:rgba(19,19,26,.97);border:1px solid var(--border);border-radius:99px;
+  padding:8px 18px;font-size:13px;font-weight:600;z-index:300;white-space:nowrap}
+.toast.hidden{display:none}
+.countdown-num{font-size:96px;font-weight:900;color:var(--accent);text-align:center;
+  letter-spacing:-4px;line-height:1}
+.rules-section{margin-bottom:14px}
+.rules-section h3{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px}
+.rules-section p,.rules-section li{font-size:12px;color:var(--text);line-height:1.65;margin-bottom:3px}
+.rules-section ul{padding-left:14px}
+.glossary-term{font-weight:700;color:var(--accent)}
+.lang-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.lang-chip{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
+  padding:10px 6px;text-align:center;cursor:pointer;font-family:inherit;color:var(--text);transition:all .15s}
+.lang-chip.selected{border-color:var(--accent);background:rgba(200,168,75,.1)}
+.lang-chip-flag{font-size:22px;display:block;margin-bottom:3px}
+.lang-chip-name{font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="toast hidden" id="toast"></div>
+
+<!-- LOBBY -->
+<div id="screen-lobby" class="screen hidden">
+  <div class="header">
+    <div class="header-logo">♟ CheckersWin</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="header-bal" id="lobby-bal">$0.00</div>
+      <button onclick="showModal('modal-lang')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">🌐</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="title" id="t-find-match">Find a Match</div>
+    <div class="subtitle" id="t-subtitle">Choose your stake and compete for real money</div>
+    <div class="section-label" id="t-select-stake">Select Stake</div>
+    <div class="stake-grid" id="stake-grid"></div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-row">
+        <span style="font-size:13px;color:var(--muted)" id="t-your-stake">Your stake</span>
+        <span id="sel-stake" style="font-weight:700">$1.00</span>
+      </div>
+      <div class="card-row">
+        <span style="font-size:13px;color:var(--muted)" id="t-prize-pool">Prize pool</span>
+        <span id="sel-prize" style="font-weight:700;color:var(--accent)">$1.90</span>
+      </div>
+      <div class="card-row">
+        <span style="font-size:13px;color:var(--muted)" id="t-platform-fee">Platform fee (5%)</span>
+        <span style="font-size:13px">5%</span>
+      </div>
+    </div>
+    <button class="btn btn-gold" onclick="findGame()" id="t-find-btn">Find Opponent for Money Game ⚡</button>
+    <div style="height:7px"></div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-outline" onclick="findFreeGame()" style="flex:1" id="t-free-btn">🆓 Practice vs Human</button>
+      <button class="btn btn-outline" onclick="startPractice()" style="flex:1" id="t-bot-btn">🤖 Practice vs Bot</button>
+    </div>
+    <div style="height:7px"></div>
+    <button class="btn btn-gold" onclick="showModal('modal-friend')" style="background:rgba(200,168,75,.15);border:1.5px solid var(--accent);color:var(--accent)" id="t-invite-btn">👥 Грати з другом</button>
+    <div style="height:7px"></div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-outline btn-sm" onclick="openDeposit()" style="flex:1" id="t-add-funds">+ Add Funds</button>
+      <button class="btn btn-outline btn-sm" onclick="openWithdraw()" style="flex:1" id="t-withdraw-btn">💸 Withdraw</button>
+    </div>
+    <div style="height:7px"></div>
+    <button class="btn btn-outline btn-sm" onclick="contactUs()" style="width:100%;color:var(--muted);font-size:13px;border-color:var(--border)" id="t-contact-btn">✉️ Contact Support</button>
+  </div>
+</div>
+
+<!-- CONFIRM FRIEND GAME -->
+<div id="screen-confirm-friend" class="screen hidden">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px">
+    <div style="font-size:50px">♟️</div>
+    <div style="font-size:20px;font-weight:800;text-align:center">Тебе запрошують зіграти!</div>
+    <div style="font-size:14px;color:var(--muted);text-align:center" id="confirm-game-type">Безкоштовна гра</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;width:100%;max-width:280px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Код гри:</div>
+      <div id="confirm-game-code" style="font-size:48px;font-weight:900;letter-spacing:8px;color:var(--accent);font-family:monospace">—</div>
+    </div>
+    <button class="btn btn-gold" onclick="confirmFriendGame()" style="width:100%;max-width:280px;font-size:18px;padding:16px">
+      ✅ Підтвердити гру
+    </button>
+    <button class="btn btn-outline" onclick="showScreen('lobby')" style="width:100%;max-width:280px;font-size:14px">
+      Скасувати
+    </button>
+  </div>
+
+<!-- MODAL: GAME OVER / REMATCH -->
+<div class="modal-overlay hidden" id="modal-gameover" style="touch-action:auto;pointer-events:auto;">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="font-size:50px;text-align:center;margin-bottom:7px" id="go-icon">🏆</div>
+    <div style="font-size:21px;font-weight:800;text-align:center;margin-bottom:3px" id="go-title">Ти переміг!</div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:18px" id="go-sub"></div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="num" id="go-prize">$0</div><div class="lbl" id="t-prize-lbl">Приз</div></div>
+      <div class="stat-box"><div class="num" id="go-moves">0</div><div class="lbl" id="t-moves-lbl">Ходи</div></div>
+    </div>
+    <!-- Rematch section (shown for real games vs humans) -->
+    <div id="go-rematch-section" style="display:none;margin-bottom:10px">
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:12px;margin-bottom:10px;font-size:13px;color:var(--muted);text-align:center" id="go-rematch-status">
+        ⏳ Чекаємо рішення суперника...
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gold" onclick="requestRematch()" id="go-rematch-btn" style="flex:1">🔄 Зіграти ще раз</button>
+        <button class="btn btn-outline" onclick="goLobby()" id="go-exit-btn">🚪 Вийти</button>
+      </div>
+    </div>
+    <!-- Practice/bot game buttons -->
+    <div id="go-practice-section">
+      <button class="btn btn-gold" id="go-find-btn" style="margin-bottom:7px" onclick="isPractice?(goLobby(),setTimeout(startPractice,300)):findNewOpponent()">🔍 Знайти нового суперника</button>
+      <button class="btn btn-outline" id="t-back-menu" onclick="goLobby()">← Головне меню</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- RESULT SCREEN -->
+<div id="screen-result" class="screen hidden">
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;gap:16px">
+    <div id="result-icon" style="font-size:72px">😞</div>
+    <div id="result-title" style="font-size:24px;font-weight:800;text-align:center">Ти програв</div>
+    <div id="result-sub" style="font-size:15px;color:var(--muted);text-align:center">Ти здався</div>
+    <div style="height:8px"></div>
+    <button id="result-btn1" onclick="goLobby()" style="width:100%;max-width:320px;padding:16px;background:var(--accent);color:#000;border:none;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;">🔄 Грати знову</button>
+    <button id="result-btn2" onclick="goLobby()" style="width:100%;max-width:320px;padding:16px;background:transparent;color:var(--text);border:1.5px solid var(--border);border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;">← Головне меню</button>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div id="screen-waiting" class="screen hidden">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+    <div class="spinner"></div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px" id="t-finding">Finding opponent...</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px" id="wait-stake">$1.00</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:28px" id="wait-time">0s</div>
+    <button class="btn btn-outline" style="max-width:180px" onclick="cancelSearch()" id="t-cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- COUNTDOWN -->
+<div id="screen-countdown" class="screen hidden">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px">
+    <div style="font-size:13px;color:var(--muted)" id="t-game-starting">Game starting!</div>
+    <div id="vs-text" style="font-size:15px;font-weight:700"></div>
+    <div class="countdown-num" id="cd-num">3</div>
+    <div id="cd-color" style="font-size:14px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<!-- GAME — суперник зверху, ти знизу -->
+<div id="screen-game" class="screen hidden" style="padding:8px 8px 0">
+  <div class="game-bar">
+    <div class="player-card" id="pc-op">
+      <div class="pname" id="pc-op-name">Opponent</div>
+      <div class="color-dot" id="pc-op-dot"></div>
+      <div class="psub" id="pc-op-sub"></div>
+    </div>
+    <div style="display:flex;align-items:center;font-size:11px;color:var(--muted);padding:0 4px">VS</div>
+    <div class="player-card" id="pc-me">
+      <div class="pname" id="pc-me-name">You</div>
+      <div class="color-dot" id="pc-me-dot"></div>
+      <div class="psub" id="pc-me-sub"></div>
+    </div>
+  </div>
+  <div class="turn-bar my-turn" id="turn-bar">Your turn</div>
+  <div id="board-wrap"><div class="board-grid" id="board"></div></div>
+  <div class="game-actions">
+    <button class="btn btn-outline btn-sm" onclick="offerDraw()" id="t-draw-btn">Draw</button>
+    <button class="btn btn-red btn-sm" onclick="doResign()" id="t-resign-btn">Здатись</button>
+    <button class="btn btn-outline btn-sm" onclick="toggleMoveHistory()" style="font-size:11px">📋</button>
+    <div style="flex:1;text-align:right;font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:flex-end;gap:4px">
+      <span id="last-move-label" style="color:#6488C8;font-size:10px"></span>
+      <span id="t-pot-label">Pot:</span>&nbsp;<span id="pot-val" style="color:var(--accent);font-weight:700">$1.90</span>
+    </div>
+  </div>
+  <!-- Move history panel -->
+  <div id="move-history-panel" style="display:none;width:100%;max-width:380px;margin:4px auto 0;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:8px 10px;max-height:120px;overflow-y:auto">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">Останні ходи:</div>
+    <div id="move-history-list"></div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="screen-profile" class="screen hidden">
+  <div class="header">
+    <div class="header-logo" id="t-profile-title">Profile</div>
+    <div class="header-bal" id="profile-bal">$0.00</div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="section-label" style="margin-bottom:8px" id="t-nickname-label">Nickname</div>
+      <div style="display:flex;gap:8px">
+        <input class="input" id="nick-input" placeholder="Your nickname" maxlength="20" style="flex:1">
+        <button class="btn btn-gold btn-sm" onclick="saveNickname()" id="t-save-nick">Save</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-row"><span style="color:var(--muted);font-size:13px" id="t-games">Games</span><span id="stat-games" style="font-weight:700">0</span></div>
+      <div class="card-row"><span style="color:var(--muted);font-size:13px" id="t-wins">Wins</span><span id="stat-wins" style="font-weight:700;color:var(--green)">0</span></div>
+      <div class="card-row"><span style="color:var(--muted);font-size:13px" id="t-losses">Losses</span><span id="stat-losses" style="font-weight:700;color:var(--red)">0</span></div>
+      <div class="card-row"><span style="color:var(--muted);font-size:13px" id="t-winrate">Win Rate</span><span id="stat-wr" style="font-weight:700">—</span></div>
+      <div class="card-row"><span style="color:var(--muted);font-size:13px" id="t-balance">Balance</span><span id="stat-bal" style="font-weight:700;color:var(--accent)">$0.00</span></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gold" onclick="openDeposit()" style="flex:1" id="t-deposit-btn">Deposit</button>
+      <button class="btn btn-outline" onclick="openWithdraw()" style="flex:1" id="t-withdraw-btn2">Withdraw</button>
+    </div>
+  </div>
+</div>
+
+<!-- RULES -->
+<div id="screen-rules" class="screen hidden">
+  <div class="header"><div class="header-logo" id="t-rules-title">Rules</div></div>
+  <div class="content" id="rules-content"></div>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="main-nav">
+  <button class="nav-tab active" onclick="switchTab('lobby')" id="tab-lobby"><span class="nav-icon">🎮</span><span id="t-nav-play">Play</span></button>
+  <button class="nav-tab" onclick="switchTab('profile')" id="tab-profile"><span class="nav-icon">👤</span><span id="t-nav-profile">Profile</span></button>
+  <button class="nav-tab" onclick="switchTab('rules')" id="tab-rules"><span class="nav-icon">📖</span><span id="t-nav-rules">Rules</span></button>
+</nav>
+
+<!-- MODAL: DEPOSIT -->
+<div class="modal-overlay hidden" id="modal-deposit" onclick="if(event.target===this)hideModal('modal-deposit')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="t-add-funds-title">Add Funds</div>
+    <div style="background:linear-gradient(135deg,rgba(200,168,75,.15),rgba(200,168,75,.05));border:1px solid rgba(200,168,75,.3);border-radius:var(--radius);padding:14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:22px">💎</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">USDT (TON)</div>
+          <div style="font-size:11px;color:var(--muted)" id="t-dep-fee">Commission ~$0.001 · Balance updates in 30 sec</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px" id="t-send-to">Send USDT to:</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px" id="t-wallet-addr">Wallet address:</div>
+        <div style="font-size:11px;font-family:monospace;word-break:break-all;color:var(--text)" id="ton-addr">UQDU78cPo0yFGngpVsyjr5qcg9w3BFm_FPOMYVsk6JDMrgdu</div>
+        <button onclick="copyAddr()" style="margin-top:6px;background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.3);border-radius:8px;padding:4px 12px;font-size:12px;color:var(--accent);cursor:pointer;font-family:inherit" id="copy-addr-btn">📋 Copy Address</button>
+      </div>
+      <div style="background:var(--surface);border:1.5px solid rgba(231,76,60,.35);border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px" id="t-memo-label">⚠️ MEMO (required):</div>
+        <div style="font-size:20px;font-weight:900;letter-spacing:3px;color:var(--accent);font-family:monospace" id="ton-memo">—</div>
+        <div style="font-size:11px;color:var(--red);margin-top:4px" id="t-memo-warn">Always include memo — deposit won't be credited without it!</div>
+        <button onclick="copyMemo()" style="margin-top:6px;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:4px 12px;font-size:12px;color:var(--red);cursor:pointer;font-family:inherit" id="copy-memo-btn">📋 Copy Memo</button>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;margin-bottom:12px;font-size:12px;color:var(--muted);line-height:1.7" id="t-dep-steps">
+      <b style="color:var(--text)" id="dep-step-title">How to deposit:</b><br>
+      <span id="dep-step-1">1. Copy wallet address</span><br>
+      <span id="dep-step-2">2. Open your crypto wallet</span><br>
+      <span id="dep-step-3">3. Send USDT to the address</span><br>
+      <span id="dep-step-4"><b style="color:var(--text)">4. Put memo code in comment/memo field</b></span><br>
+      <span id="dep-step-5">5. Balance updates in 30 seconds ✅</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:12px" id="t-min-dep">Minimum: $1 USDT · TON network only</div>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="showOtherPayment()" style="font-size:13px;color:var(--muted)" id="t-other-pay">💳 Поповнити іншим способом</button>
+    <div style="height:8px"></div>
+    <button class="btn btn-outline" onclick="hideModal('modal-deposit')" id="t-done-dep">Done</button>
+  </div>
+</div>
+
+<!-- MODAL: WITHDRAW -->
+<div class="modal-overlay hidden" id="modal-withdraw" onclick="if(event.target===this)hideModal('modal-withdraw')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="t-withdraw-title">Withdraw Funds</div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-row">
+        <span style="font-size:13px;color:var(--muted)" id="t-available">Available Balance</span>
+        <span id="wd-bal" style="font-weight:700;color:var(--accent)">$0.00</span>
+      </div>
+    </div>
+    <div style="background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:var(--radius);padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">💎</span>
+      <div><div style="font-weight:700;font-size:13px">USDT (TON)</div>
+      <div style="font-size:11px;color:var(--muted)" id="t-wd-fee">Commission ~$0.001 · Manual processing within 24h</div></div>
+    </div>
+    <input class="input" id="wd-dest" placeholder="Your TON wallet (UQ... or EQ...)" style="margin-bottom:7px">
+    <input class="input" id="wd-amt" type="number" placeholder="Amount USDT" min="1" style="margin-bottom:10px">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px" id="t-min-wd">Minimum $1. Processed within 24h.</div>
+    <button class="btn btn-gold" onclick="initiateWithdraw()" id="t-request-wd">Request Withdrawal</button>
+  </div>
+</div>
+
+
+
+<!-- MODAL: DRAW -->
+<div class="modal-overlay hidden" id="modal-draw">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="t-draw-offer">Draw Offer</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:18px" id="t-draw-desc">Opponent offers a draw. Pot split equally minus 5% fee.</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-green" onclick="acceptDraw()" id="t-accept">Accept</button>
+      <button class="btn btn-outline" onclick="declineDraw()" id="t-decline">Decline</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: INVITE -->
+<div class="modal-overlay hidden" id="modal-invite" onclick="if(event.target===this)hideModal('modal-invite')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="t-invite-title">Invite a Friend</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px" id="t-invite-desc">Share this link. Your friend joins directly into your game.</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:5px" id="t-your-link">Your invite link:</div>
+      <div id="invite-link-text" style="font-size:11px;word-break:break-all;color:var(--accent);font-family:monospace"></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px" id="t-link-expires">Link expires in 10 minutes.</div>
+    <button class="btn btn-gold" onclick="copyInviteLink()" style="margin-bottom:7px" id="copy-btn">📋 Copy Link</button>
+    <button class="btn btn-outline" onclick="shareInviteLink()" id="t-share-tg">📤 Share via Telegram</button>
+  </div>
+</div>
+
+<!-- MODAL: FREE WAITING -->
+<div class="modal-overlay hidden" id="modal-free-waiting">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="t-free-title">Practice vs Human</div>
+    <div style="text-align:center;padding:18px 0">
+      <div class="spinner" style="margin:0 auto 14px"></div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px" id="t-free-finding">Finding opponent...</div>
+      <div style="font-size:13px;color:var(--muted)" id="free-wait-time">0s</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px" id="free-wait-hint">Якщо сервер спав — зачекайте 30-60 секунд</div>
+    </div>
+    <button class="btn btn-outline" onclick="cancelFreeSearch();hideModal('modal-free-waiting');localStorage.removeItem('cw_pending_friend');localStorage.removeItem('cw_pending_invite');document.getElementById('t-free-title').textContent=t('free-title');" id="t-free-cancel">Cancel</button>
+  </div>
+</div>
+
+<!-- MODAL: LANGUAGE -->
+<div class="modal-overlay hidden" id="modal-lang" onclick="if(event.target===this)hideModal('modal-lang')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🌐 Language / Мова</div>
+    <div class="lang-grid" id="lang-grid"></div>
+  </div>
+</div>
+
+<!-- MODAL: OTHER PAYMENT -->
+<div class="modal-overlay hidden" id="modal-other-pay" onclick="if(event.target===this)hideModal('modal-other-pay')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">💳 Інший спосіб поповнення</div>
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:14px;margin-bottom:14px;line-height:1.8;font-size:13px;color:var(--muted)">
+      Для поповнення банківським переказом, карткою або іншим способом — напишіть нам у підтримку.<br><br>
+      Ми обробимо ваш запит протягом кількох годин та зарахуємо кошти на баланс вручну.
+    </div>
+    <div style="background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:var(--radius);padding:12px;margin-bottom:16px;font-size:13px">
+      <b style="color:var(--accent)">Як це працює:</b><br>
+      1. Натисніть "Написати в підтримку"<br>
+      2. Вкажіть суму і спосіб оплати<br>
+      3. Ми надамо реквізити<br>
+      4. Після оплати — зарахуємо на баланс
+    </div>
+    <button class="btn btn-gold" onclick="contactUs()" style="margin-bottom:8px">✉️ Написати в підтримку</button>
+    <button class="btn btn-outline" onclick="hideModal('modal-other-pay')">Закрити</button>
+  </div>
+</div>
+
+<!-- MODAL: PLAY VS FRIEND -->
+<div class="modal-overlay hidden" id="modal-friend" onclick="if(event.target===this)cancelFriendWait()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👥 Грати з другом</div>
+
+    <!-- КРОК 1 -->
+    <div id="friend-step1">
+      <div class="section-label" style="margin-bottom:8px">Тип гри:</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="btn btn-gold" id="friend-type-free" onclick="setFriendType('free')" style="flex:1">🆓 Безкоштовно</button>
+        <button class="btn btn-outline" id="friend-type-money" onclick="setFriendType('money')" style="flex:1">💰 На гроші</button>
+      </div>
+      <div id="friend-stake-row" style="display:none;margin-bottom:14px">
+        <div class="section-label">Ставка:</div>
+        <div class="stake-grid" id="friend-stake-grid"></div>
+      </div>
+      <button class="btn btn-gold" onclick="generateFriendLink()" style="margin-bottom:12px;width:100%">🎮 Створити гру</button>
+      <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:10px">— або введи код від друга —</div>
+      <input class="input" id="friend-code-input" placeholder="_ _ _ _ _ _" maxlength="6" inputmode="numeric"
+        style="width:100%;text-align:center;font-size:40px;font-weight:900;letter-spacing:12px;padding:18px;margin-bottom:10px">
+      <button class="btn btn-green" onclick="joinByCode()" style="width:100%;font-size:16px;padding:14px;margin-bottom:10px">✅ Приєднатись до друга</button>
+      <button class="btn btn-outline" onclick="hideModal('modal-friend')" style="width:100%">Скасувати</button>
+    </div>
+
+    <!-- КРОК 2: відправити запрошення -->
+    <div id="friend-step2" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Код гри:</div>
+        <div id="friend-code-display" style="font-size:52px;font-weight:900;letter-spacing:10px;color:var(--accent);font-family:monospace;background:var(--surface2);border-radius:var(--radius);padding:14px;margin-bottom:4px">—</div>
+        <div style="font-size:11px;color:var(--muted)">Натисни "Надіслати" — відкриється Telegram</div>
+      </div>
+      <div id="friend-invite-url" style="display:none"></div>
+      <button class="btn btn-gold" onclick="shareFriendLink()" style="width:100%;margin-bottom:8px;font-size:15px;padding:14px">📤 Надіслати посилання другу</button>
+      <button class="btn btn-outline" onclick="copyFriendLink()" style="width:100%;margin-bottom:12px">📋 Скопіювати посилання</button>
+      <div style="background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2);border-radius:var(--radius);padding:10px;margin-bottom:10px;font-size:13px;color:var(--muted);text-align:center">
+        ⏳ Чекаємо на друга...
+      </div>
+      <button class="btn btn-outline" onclick="cancelFriendWait()" style="width:100%;color:var(--red);border-color:var(--red);font-size:13px">✕ Скасувати</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- MODAL: RESIGN CONFIRM -->
+<div class="modal-overlay hidden" id="modal-resign-confirm" onclick="if(event.target===this)hideModal('modal-resign-confirm')">
+  <div class="modal" style="padding:24px 20px 30px">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:36px;margin-bottom:8px">🏳️</div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:6px" id="t-resign-title">Здатись?</div>
+      <div style="font-size:13px;color:var(--muted)" id="t-resign-desc">Суперник отримає перемогу</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-red" onclick="doResignConfirmed()" style="flex:1">🏳️ Так, здаюсь</button>
+      <button class="btn btn-outline" onclick="hideModal('modal-resign-confirm')" style="flex:1">Скасувати</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: WELCOME -->
+<div class="modal-overlay hidden" id="modal-welcome">
+  <div class="modal" style="padding:24px 20px 40px">
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:50px;margin-bottom:8px">♟️</div>
+      <div style="font-size:24px;font-weight:900;letter-spacing:-.5px;margin-bottom:4px" id="w-title">CheckersWin</div>
+      <div style="font-size:13px;color:var(--muted)" id="w-sub">Real Money Checkers</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="background:var(--surface2);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:20px;margin-bottom:3px">💰</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:2px" id="w-f1-title">Real Money</div>
+        <div style="font-size:10px;color:var(--muted)" id="w-f1-desc">$0.50–$100 per match</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:20px;margin-bottom:3px">⚡</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:2px" id="w-f2-title">Fast Payouts</div>
+        <div style="font-size:10px;color:var(--muted)" id="w-f2-desc">USDT (TON) · ~$0.001 fee</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:20px;margin-bottom:3px">🏆</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:2px" id="w-f3-title">Pure Skill</div>
+        <div style="font-size:10px;color:var(--muted)" id="w-f3-desc">No luck — strategy only</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:12px;padding:11px;text-align:center">
+        <div style="font-size:20px;margin-bottom:3px">🌍</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:2px" id="w-f4-title">Global Players</div>
+        <div style="font-size:10px;color:var(--muted)" id="w-f4-desc">Free or for real money</div>
+      </div>
+    </div>
+    <div style="background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2);border-radius:12px;padding:11px;margin-bottom:14px;font-size:12px;color:var(--muted);line-height:1.6" id="w-how">
+      <b style="color:var(--accent)">How it works:</b> Deposit USDT → Choose stake → Beat opponent → Win 95% of pot. Only 5% fee.
+    </div>
+    <button class="btn btn-gold" onclick="hideModal('modal-welcome');localStorage.setItem('cw_welcomed','1')" id="w-start">Play Now ⚡</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// TRANSLATIONS
+// ════════════════════════════════════════════
+const LANGS = {
+  en:{flag:'🇬🇧',name:'English',
+    'find-match':'Find a Match','subtitle':'Choose your stake and compete for real money',
+    'select-stake':'Select Stake','your-stake':'Your stake','prize-pool':'Prize pool',
+    'platform-fee':'Platform fee (5%)','find-btn':'Find Opponent for Money Game ⚡',
+    'free-btn':'🆓 Practice vs Human','bot-btn':'🤖 Practice vs Bot',
+    'invite-btn':'🔗 Invite a Friend','add-funds':'+ Add Funds','withdraw-btn':'💸 Withdraw',
+    'finding':'Finding opponent...','cancel':'Cancel','game-starting':'Game starting!',
+    'draw-btn':'Draw','resign-btn':'Resign','pot-label':'Pot:',
+    'profile-title':'Profile','nickname-label':'Nickname','save-nick':'Save',
+    'games':'Games','wins':'Wins','losses':'Losses','winrate':'Win Rate','balance':'Balance',
+    'deposit-btn':'Deposit','withdraw-btn2':'Withdraw','rules-title':'Rules',
+    'nav-play':'Play','nav-profile':'Profile','nav-rules':'Rules',
+    'add-funds-title':'Add Funds','send-to':'Send USDT to:','wallet-addr':'Wallet address:',
+    'memo-label':'⚠️ MEMO (required):',
+    'memo-warn':"Always include memo — deposit won't be credited without it!",
+    'dep-steps':'How to deposit:','min-dep':'Minimum: $1 USDT · TON network only',
+    'done-dep':'Done','dep-fee':'Commission ~$0.001 · Balance updates in 30 sec',
+    'withdraw-title':'Withdraw Funds','available':'Available Balance',
+    'wd-fee':'Commission ~$0.001 · Manual processing within 24h',
+    'min-wd':'Minimum $1. Processed within 24h.','request-wd':'Request Withdrawal',
+    'prize-lbl':'Prize','moves-lbl':'Moves','play-again':'Play Again',
+    'withdraw-wins':'Withdraw Winnings','back-menu':'← Back to Menu',
+    'draw-offer':'Draw Offer','draw-desc':'Opponent offers a draw. Pot split equally minus 5% fee.',
+    'accept':'Accept','decline':'Decline',
+    'invite-title':'Invite a Friend','invite-desc':'Share this link. Your friend joins directly.',
+    'your-link':'Your invite link:','link-expires':'Link expires in 10 minutes.',
+    'share-tg':'📤 Share via Telegram','free-title':'Practice vs Human',
+    'free-finding':'Finding opponent...','free-cancel':'Cancel',
+    'your-turn':'⚡ Your turn — select a piece','opp-turn':"⏳ Opponent's turn",
+    'bot-thinking':'⏳ Bot is thinking...',
+    'you-won':'You Won! 🎉','you-lost':'You Lost','its-draw':'Draw!',
+    'opp-timeout':'Opponent ran out of time','you-timeout':'You ran out of time',
+    'opp-resigned':'Opponent resigned','you-resigned':'You resigned',
+    'opp-disconnected':'Opponent disconnected',
+    'you-are-white':'You are ⚪ White (moves first)','you-are-black':'You are ⚫ Black',
+    'practice':'Practice Mode · Free','free-game':'Free Game',
+    'w-title':'CheckersWin','w-sub':'Real Money Checkers',
+    'w-f1-title':'Real Money','w-f1-desc':'$0.50–$100 per match',
+    'w-f2-title':'Fast Payouts','w-f2-desc':'USDT (TON) · ~$0.001 fee',
+    'w-f3-title':'Pure Skill','w-f3-desc':'No luck — strategy only',
+    'w-f4-title':'Global Players','w-f4-desc':'Free or for real money',
+    'w-how':'<b style="color:var(--accent)">How it works:</b> Deposit USDT → Choose stake → Beat opponent → Win the pot. Only 5% platform fee.',
+    'contact-btn':'✉️ Contact Support','other-pay':'💳 Other payment method',
+    'w-start':'Play Now ⚡',
+  },
+  uk:{flag:'🇺🇦',name:'Українська',
+    'find-match':'Знайти матч','subtitle':'Вибери ставку і змагайся за реальні гроші',
+    'select-stake':'Вибери ставку','your-stake':'Твоя ставка','prize-pool':'Призовий фонд',
+    'platform-fee':'Комісія (5%)','find-btn':'Знайти суперника для гри на гроші ⚡',
+    'free-btn':'🆓 Тренувальна гра проти людини','bot-btn':'🤖 Тренувальна гра проти Бота',
+    'invite-btn':'🔗 Запросити друга','add-funds':'+ Поповнити','withdraw-btn':'💸 Вивести',
+    'finding':'Шукаємо суперника...','cancel':'Скасувати','game-starting':'Гра починається!',
+    'draw-btn':'Нічия','resign-btn':'Здатись','pot-label':'Банк:',
+    'profile-title':'Профіль','nickname-label':'Нікнейм','save-nick':'Зберегти',
+    'games':'Ігри','wins':'Перемоги','losses':'Поразки','winrate':'% перемог','balance':'Баланс',
+    'deposit-btn':'Поповнити','withdraw-btn2':'Вивести','rules-title':'Правила',
+    'nav-play':'Грати','nav-profile':'Профіль','nav-rules':'Правила',
+    'add-funds-title':'Поповнити рахунок','send-to':'Відправ USDT на:','wallet-addr':'Адреса гаманця:',
+    'memo-label':'⚠️ MEMO (обов\'язково):',
+    'memo-warn':'Завжди вказуй memo — інакше поповнення не зарахується!',
+    'dep-steps':'Як поповнити:','min-dep':'Мінімум: $1 USDT · Тільки мережа TON',
+    'done-dep':'Готово','dep-fee':'Комісія ~$0.001 · Баланс оновлюється за 30 сек',
+    'withdraw-title':'Вивід коштів','available':'Доступний баланс',
+    'wd-fee':'Комісія ~$0.001 · Ручна обробка до 24 год',
+    'min-wd':'Мінімум $1. Обробка до 24 год.','request-wd':'Запит на вивід',
+    'prize-lbl':'Приз','moves-lbl':'Ходи','play-again':'Грати знову',
+    'withdraw-wins':'Вивести виграш','back-menu':'← Головне меню',
+    'draw-offer':'Пропозиція нічиєї','draw-desc':'Суперник пропонує нічию. Банк ділиться порівну мінус 5% комісія.',
+    'accept':'Прийняти','decline':'Відхилити',
+    'invite-title':'Запросити друга','invite-desc':'Поділись посиланням. Друг потрапить прямо до тебе.',
+    'your-link':'Твоє посилання:','link-expires':'Посилання дійсне 10 хвилин.',
+    'share-tg':'📤 Поділитись в Telegram','free-title':'Тренувальна гра проти людини',
+    'free-finding':'Шукаємо суперника...','free-cancel':'Скасувати',
+    'your-turn':'⚡ Твій хід — вибери шашку','opp-turn':'⏳ Хід суперника',
+    'bot-thinking':'⏳ Бот думає...',
+    'you-won':'Ти переміг! 🎉','you-lost':'Ти програв','its-draw':'Нічия!',
+    'opp-timeout':'Суперник вичерпав час','you-timeout':'Ти вичерпав час',
+    'opp-resigned':'Суперник здався','you-resigned':'Ти здався',
+    'opp-disconnected':'Суперник відключився',
+    'you-are-white':'Ти ⚪ Білі (ходять першими)','you-are-black':'Ти ⚫ Чорні',
+    'practice':'Тренування · Безкоштовно','free-game':'Безкоштовна гра',
+    'w-title':'CheckersWin','w-sub':'Шашки на реальні гроші',
+    'w-f1-title':'Реальні гроші','w-f1-desc':'Ставки $0.50–$100',
+    'w-f2-title':'Швидкі виплати','w-f2-desc':'USDT (TON) · ~$0.001',
+    'w-f3-title':'Чистий скіл','w-f3-desc':'Без удачі — тільки стратегія',
+    'w-f4-title':'Гравці зі світу','w-f4-desc':'Безкоштовно або за гроші',
+    'w-how':'<b style="color:var(--accent)">Як це працює:</b> Поповни USDT → Вибери ставку → Переможи суперника → Отримай виграш. Комісія лише 5%.',
+    'contact-btn':'✉️ Написати нам','other-pay':'💳 Поповнити іншим способом',
+    'w-start':'Грати зараз ⚡',
+  },
+  ru:{flag:'🇷🇺',name:'Русский',
+    'find-match':'Найти матч','subtitle':'Выбери ставку и соревнуйся за реальные деньги',
+    'select-stake':'Выбери ставку','your-stake':'Твоя ставка','prize-pool':'Призовой фонд',
+    'platform-fee':'Комиссия (5%)','find-btn':'Найти соперника для игры на деньги ⚡',
+    'free-btn':'🆓 Тренировка против человека','bot-btn':'🤖 Тренировка против Бота',
+    'invite-btn':'🔗 Пригласить друга','add-funds':'+ Пополнить','withdraw-btn':'💸 Вывести',
+    'finding':'Ищем соперника...','cancel':'Отмена','game-starting':'Игра начинается!',
+    'draw-btn':'Ничья','resign-btn':'Сдаться','pot-label':'Банк:',
+    'profile-title':'Профиль','nickname-label':'Никнейм','save-nick':'Сохранить',
+    'games':'Игры','wins':'Победы','losses':'Поражения','winrate':'% побед','balance':'Баланс',
+    'deposit-btn':'Пополнить','withdraw-btn2':'Вывести','rules-title':'Правила',
+    'nav-play':'Играть','nav-profile':'Профиль','nav-rules':'Правила',
+    'add-funds-title':'Пополнить счёт','send-to':'Отправь USDT на:','wallet-addr':'Адрес кошелька:',
+    'memo-label':'⚠️ MEMO (обязательно):',
+    'memo-warn':'Всегда указывай memo — иначе пополнение не зачтётся!',
+    'dep-steps':'Как пополнить:','min-dep':'Минимум: $1 USDT · Только сеть TON',
+    'done-dep':'Готово','dep-fee':'Комиссия ~$0.001 · Баланс обновляется за 30 сек',
+    'withdraw-title':'Вывод средств','available':'Доступный баланс',
+    'wd-fee':'Комиссия ~$0.001 · Ручная обработка до 24 ч',
+    'min-wd':'Минимум $1. Обработка до 24 ч.','request-wd':'Запрос на вывод',
+    'prize-lbl':'Приз','moves-lbl':'Ходы','play-again':'Играть снова',
+    'withdraw-wins':'Вывести выигрыш','back-menu':'← Главное меню',
+    'draw-offer':'Предложение ничьей','draw-desc':'Соперник предлагает ничью. Банк делится поровну минус 5% комиссия.',
+    'accept':'Принять','decline':'Отклонить',
+    'invite-title':'Пригласить друга','invite-desc':'Поделись ссылкой. Друг попадёт прямо к тебе.',
+    'your-link':'Твоя ссылка:','link-expires':'Ссылка действительна 10 минут.',
+    'share-tg':'📤 Поделиться в Telegram','free-title':'Тренировка против человека',
+    'free-finding':'Ищем соперника...','free-cancel':'Отмена',
+    'your-turn':'⚡ Твой ход — выбери шашку','opp-turn':'⏳ Ход соперника',
+    'bot-thinking':'⏳ Бот думает...',
+    'you-won':'Ты победил! 🎉','you-lost':'Ты проиграл','its-draw':'Ничья!',
+    'opp-timeout':'Соперник вышел по времени','you-timeout':'Время вышло',
+    'opp-resigned':'Соперник сдался','you-resigned':'Ты сдался',
+    'opp-disconnected':'Соперник отключился',
+    'you-are-white':'Ты ⚪ Белые (ходят первыми)','you-are-black':'Ты ⚫ Чёрные',
+    'practice':'Тренировка · Бесплатно','free-game':'Бесплатная игра',
+    'w-title':'CheckersWin','w-sub':'Шашки на реальные деньги',
+    'w-f1-title':'Реальные деньги','w-f1-desc':'Ставки $0.50–$100',
+    'w-f2-title':'Быстрые выплаты','w-f2-desc':'USDT (TON) · ~$0.001',
+    'w-f3-title':'Чистый скилл','w-f3-desc':'Без удачи — только стратегия',
+    'w-f4-title':'Игроки по всему миру','w-f4-desc':'Бесплатно или за деньги',
+    'w-how':'<b style="color:var(--accent)">Как это работает:</b> Пополни USDT → Выбери ставку → Победи соперника → Получи выигрыш. Комиссия только 5%.',
+    'contact-btn':'✉️ Написать нам','other-pay':'💳 Другой способ пополнения',
+    'w-start':'Играть сейчас ⚡',
+  },
+  de:{flag:'🇩🇪',name:'Deutsch',
+    'find-match':'Match finden','subtitle':'Wähle deinen Einsatz und spiele um echtes Geld',
+    'select-stake':'Einsatz wählen','your-stake':'Dein Einsatz','prize-pool':'Preispool',
+    'platform-fee':'Gebühr (5%)','find-btn':'Gegner für Geldspiel finden ⚡',
+    'free-btn':'🆓 Training gegen Mensch','bot-btn':'🤖 Training gegen Bot',
+    'invite-btn':'🔗 Freund einladen','add-funds':'+ Einzahlen','withdraw-btn':'💸 Abheben',
+    'finding':'Suche Gegner...','cancel':'Abbrechen','game-starting':'Spiel beginnt!',
+    'draw-btn':'Remis','resign-btn':'Aufgeben','pot-label':'Topf:',
+    'profile-title':'Profil','nickname-label':'Spitzname','save-nick':'Speichern',
+    'games':'Spiele','wins':'Siege','losses':'Niederlagen','winrate':'Gewinnrate','balance':'Guthaben',
+    'deposit-btn':'Einzahlen','withdraw-btn2':'Abheben','rules-title':'Regeln',
+    'nav-play':'Spielen','nav-profile':'Profil','nav-rules':'Regeln',
+    'add-funds-title':'Guthaben aufladen','send-to':'USDT senden an:','wallet-addr':'Wallet-Adresse:',
+    'memo-label':'⚠️ MEMO (erforderlich):','memo-warn':'Immer Memo angeben — sonst wird die Einzahlung nicht gutgeschrieben!',
+    'dep-steps':'So einzahlen:','min-dep':'Minimum: $1 USDT · Nur TON-Netzwerk',
+    'done-dep':'Fertig','dep-fee':'Gebühr ~$0.001 · Guthaben in 30 Sek',
+    'withdraw-title':'Geld abheben','available':'Verfügbares Guthaben',
+    'wd-fee':'Gebühr ~$0.001 · Manuelle Bearbeitung bis 24h',
+    'min-wd':'Minimum $1. Bearbeitung bis 24h.','request-wd':'Auszahlung beantragen',
+    'prize-lbl':'Preis','moves-lbl':'Züge','play-again':'Nochmal','withdraw-wins':'Gewinn abheben',
+    'back-menu':'← Hauptmenü','draw-offer':'Remisangebot',
+    'draw-desc':'Gegner bietet Remis. Topf geteilt minus 5% Gebühr.',
+    'accept':'Annehmen','decline':'Ablehnen',
+    'invite-title':'Freund einladen','invite-desc':'Teile diesen Link.',
+    'your-link':'Einladungslink:','link-expires':'Link gilt 10 Minuten.',
+    'share-tg':'📤 Per Telegram teilen','free-title':'Training gegen Mensch',
+    'free-finding':'Suche Gegner...','free-cancel':'Abbrechen',
+    'your-turn':'⚡ Dein Zug','opp-turn':'⏳ Gegner am Zug','bot-thinking':'⏳ Bot denkt...',
+    'you-won':'Du gewonnen! 🎉','you-lost':'Du verloren','its-draw':'Remis!',
+    'opp-timeout':'Gegner Zeit abgelaufen','you-timeout':'Deine Zeit abgelaufen',
+    'opp-resigned':'Gegner aufgegeben','you-resigned':'Du aufgegeben','opp-disconnected':'Gegner getrennt',
+    'you-are-white':'Du bist ⚪ Weiß (beginnt)','you-are-black':'Du bist ⚫ Schwarz',
+    'practice':'Training · Kostenlos','free-game':'Kostenloses Spiel',
+    'w-title':'CheckersWin','w-sub':'Dame um echtes Geld',
+    'w-f1-title':'Echtes Geld','w-f1-desc':'$0.50–$100 pro Spiel',
+    'w-f2-title':'Schnelle Auszahlung','w-f2-desc':'USDT (TON) · ~$0.001',
+    'w-f3-title':'Reines Können','w-f3-desc':'Kein Glück — nur Strategie',
+    'w-f4-title':'Weltweite Spieler','w-f4-desc':'Kostenlos oder für Geld',
+    'w-how':'<b style="color:var(--accent)">So funktioniert es:</b> USDT einzahlen → Einsatz wählen → Gegner besiegen → 95% des Topfes gewinnen. Nur 5% Gebühr.',
+    'contact-btn':'✉️ Kontakt',
+    'w-start':'Jetzt spielen ⚡',
+  },
+  es:{flag:'🇪🇸',name:'Español',
+    'find-match':'Buscar partida','subtitle':'Elige apuesta y compite por dinero real',
+    'select-stake':'Seleccionar apuesta','your-stake':'Tu apuesta','prize-pool':'Premio total',
+    'platform-fee':'Comisión (5%)','find-btn':'Buscar rival por dinero real ⚡',
+    'free-btn':'🆓 Práctica contra humano','bot-btn':'🤖 Práctica contra Bot',
+    'invite-btn':'🔗 Invitar amigo','add-funds':'+ Depositar','withdraw-btn':'💸 Retirar',
+    'finding':'Buscando rival...','cancel':'Cancelar','game-starting':'¡Empieza la partida!',
+    'draw-btn':'Tablas','resign-btn':'Rendirse','pot-label':'Bote:',
+    'profile-title':'Perfil','nickname-label':'Apodo','save-nick':'Guardar',
+    'games':'Partidas','wins':'Victorias','losses':'Derrotas','winrate':'% victorias','balance':'Saldo',
+    'deposit-btn':'Depositar','withdraw-btn2':'Retirar','rules-title':'Reglas',
+    'nav-play':'Jugar','nav-profile':'Perfil','nav-rules':'Reglas',
+    'add-funds-title':'Añadir fondos','send-to':'Envía USDT a:','wallet-addr':'Dirección del monedero:',
+    'memo-label':'⚠️ MEMO (obligatorio):','memo-warn':'Siempre incluye el memo — ¡sin él no se acreditará el depósito!',
+    'dep-steps':'Cómo depositar:','min-dep':'Mínimo: $1 USDT · Solo red TON',
+    'done-dep':'Listo','dep-fee':'Comisión ~$0.001 · Saldo en 30 seg',
+    'withdraw-title':'Retirar fondos','available':'Saldo disponible',
+    'wd-fee':'Comisión ~$0.001 · Procesamiento manual 24h',
+    'min-wd':'Mínimo $1. Procesado en 24h.','request-wd':'Solicitar retiro',
+    'prize-lbl':'Premio','moves-lbl':'Jugadas','play-again':'Jugar de nuevo',
+    'withdraw-wins':'Retirar ganancias','back-menu':'← Menú principal',
+    'draw-offer':'Oferta de tablas','draw-desc':'Rival ofrece tablas. Bote dividido menos 5% comisión.',
+    'accept':'Aceptar','decline':'Rechazar',
+    'invite-title':'Invitar amigo','invite-desc':'Comparte este enlace.',
+    'your-link':'Tu enlace:','link-expires':'El enlace expira en 10 minutos.',
+    'share-tg':'📤 Compartir por Telegram','free-title':'Práctica contra humano',
+    'free-finding':'Buscando rival...','free-cancel':'Cancelar',
+    'your-turn':'⚡ Tu turno','opp-turn':'⏳ Turno del rival','bot-thinking':'⏳ Bot pensando...',
+    'you-won':'¡Ganaste! 🎉','you-lost':'Perdiste','its-draw':'¡Tablas!',
+    'opp-timeout':'Rival sin tiempo','you-timeout':'Se acabó el tiempo',
+    'opp-resigned':'Rival se rindió','you-resigned':'Te rendiste','opp-disconnected':'Rival desconectado',
+    'you-are-white':'Eres ⚪ Blancas (primeras)','you-are-black':'Eres ⚫ Negras',
+    'practice':'Práctica · Gratis','free-game':'Juego gratuito',
+    'w-title':'CheckersWin','w-sub':'Damas por dinero real',
+    'w-f1-title':'Dinero real','w-f1-desc':'$0.50–$100 por partida',
+    'w-f2-title':'Pagos rápidos','w-f2-desc':'USDT (TON) · ~$0.001',
+    'w-f3-title':'Pura habilidad','w-f3-desc':'Sin suerte — solo estrategia',
+    'w-f4-title':'Jugadores globales','w-f4-desc':'Gratis o por dinero',
+    'w-how':'<b style="color:var(--accent)">Cómo funciona:</b> Deposita USDT → Elige apuesta → Vence al rival → Gana 95% del bote. Solo 5% de comisión.',
+    'contact-btn':'✉️ Contacto',
+    'w-start':'¡Jugar ahora! ⚡',
+  },
+  fr:{flag:'🇫🇷',name:'Français',
+    'find-match':'Trouver une partie','subtitle':'Choisissez votre mise et jouez pour de l\'argent réel',
+    'select-stake':'Choisir la mise','your-stake':'Votre mise','prize-pool':'Cagnotte',
+    'platform-fee':'Commission (5%)','find-btn':'Trouver adversaire (argent réel) ⚡',
+    'free-btn':'🆓 Entraînement contre humain','bot-btn':'🤖 Entraînement contre Bot',
+    'invite-btn':'🔗 Inviter un ami','add-funds':'+ Déposer','withdraw-btn':'💸 Retirer',
+    'finding':'Recherche adversaire...','cancel':'Annuler','game-starting':'La partie commence!',
+    'draw-btn':'Nulle','resign-btn':'Abandonner','pot-label':'Cagnotte:',
+    'profile-title':'Profil','nickname-label':'Pseudo','save-nick':'Enregistrer',
+    'games':'Parties','wins':'Victoires','losses':'Défaites','winrate':'% victoires','balance':'Solde',
+    'deposit-btn':'Déposer','withdraw-btn2':'Retirer','rules-title':'Règles',
+    'nav-play':'Jouer','nav-profile':'Profil','nav-rules':'Règles',
+    'add-funds-title':'Ajouter des fonds','send-to':'Envoyer USDT à:','wallet-addr':'Adresse du portefeuille:',
+    'memo-label':'⚠️ MÉMO (obligatoire):','memo-warn':'Toujours inclure le mémo — sinon le dépôt ne sera pas crédité!',
+    'dep-steps':'Comment déposer:','min-dep':'Minimum: $1 USDT · Réseau TON uniquement',
+    'done-dep':'Terminé','dep-fee':'Commission ~$0.001 · Solde en 30 sec',
+    'withdraw-title':'Retirer des fonds','available':'Solde disponible',
+    'wd-fee':'Commission ~$0.001 · Traitement manuel 24h',
+    'min-wd':'Minimum $1. Traitement sous 24h.','request-wd':'Demander un retrait',
+    'prize-lbl':'Prix','moves-lbl':'Coups','play-again':'Rejouer',
+    'withdraw-wins':'Retirer les gains','back-menu':'← Menu principal',
+    'draw-offer':'Offre de nulle','draw-desc':'L\'adversaire propose la nulle. Cagnotte partagée moins 5% de commission.',
+    'accept':'Accepter','decline':'Refuser',
+    'invite-title':'Inviter un ami','invite-desc':'Partagez ce lien.',
+    'your-link':'Votre lien:','link-expires':'Le lien expire dans 10 minutes.',
+    'share-tg':'📤 Partager via Telegram','free-title':'Entraînement contre humain',
+    'free-finding':'Recherche adversaire...','free-cancel':'Annuler',
+    'your-turn':'⚡ Votre tour','opp-turn':'⏳ Tour de l\'adversaire','bot-thinking':'⏳ Bot réfléchit...',
+    'you-won':'Vous avez gagné! 🎉','you-lost':'Vous avez perdu','its-draw':'Nulle!',
+    'opp-timeout':'Adversaire hors temps','you-timeout':'Temps écoulé',
+    'opp-resigned':'Adversaire abandonné','you-resigned':'Vous avez abandonné','opp-disconnected':'Adversaire déconnecté',
+    'you-are-white':'Vous êtes ⚪ Blancs (commencent)','you-are-black':'Vous êtes ⚫ Noirs',
+    'practice':'Pratique · Gratuit','free-game':'Jeu gratuit',
+    'w-title':'CheckersWin','w-sub':'Dames pour de l\'argent réel',
+    'w-f1-title':'Argent réel','w-f1-desc':'$0.50–$100 par partie',
+    'w-f2-title':'Paiements rapides','w-f2-desc':'USDT (TON) · ~$0.001',
+    'w-f3-title':'Pure habileté','w-f3-desc':'Sans chance — que la stratégie',
+    'w-f4-title':'Joueurs mondiaux','w-f4-desc':'Gratuit ou pour de l\'argent',
+    'w-how':'<b style="color:var(--accent)">Comment ça marche:</b> Déposez USDT → Choisissez mise → Battez l\'adversaire → Gagnez 95% de la cagnotte. Seulement 5% de commission.',
+    'contact-btn':'✉️ Nous contacter',
+    'w-start':'Jouer maintenant ⚡',
+  },
+};
+
+// ════════════════════════════════════════════
+// CONFIG & STATE
+// ════════════════════════════════════════════
+const SERVER_URL = 'checkerswin-server.onrender.com';
+const WS_URL = 'wss://' + SERVER_URL;
+const API_URL = 'https://' + SERVER_URL;
+const STAKES = [0.5,1,2,3,5,7,10,15,20,25,50,100];
+const COMMISSION = 0.05;
+
+let ws = null;
+let myPlayer = null;
+let myColor = null;
+let gameState = null;
+let selectedPiece = null;
+let selectedStake = 1;
+let isPractice = false;
+let isFreeGame = false;
+let waitTimer = null;
+let waitSecs = 0;
+let freeWaitTimer = null;
+let freeWaitSecs = 0;
+let pendingInviteCode = null;
+let currentLang = 'en';
+let animating = false;
+let _lastMyTurn = null;
+let lastMoveFrom = null;
+let lastMoveTo = null;
+var moneyBotStake = 0;
+var moneyBotPrize = 0;
+let rematchGameId = null;
+let rematchOpponentId = null;
+let rematchTimer = null;
+let myRematchChoice = null; // 'yes' or 'no'
+
+// ════════════════════════════════════════════
+// LANGUAGE
+// ════════════════════════════════════════════
+function detectLang(){
+  const saved = localStorage.getItem('cw_lang');
+  if(saved && LANGS[saved]) return saved;
+  const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || '';
+  if(tgLang.startsWith('uk')) return 'uk';
+  if(tgLang.startsWith('ru')) return 'ru';
+  if(tgLang.startsWith('de')) return 'de';
+  if(tgLang.startsWith('es')) return 'es';
+  if(tgLang.startsWith('fr')) return 'fr';
+  return 'en';
+}
+function t(key){ return (LANGS[currentLang]&&LANGS[currentLang][key]) || LANGS.en[key] || key; }
+function setLang(lang){
+  currentLang = lang;
+  localStorage.setItem('cw_lang', lang);
+  applyLang();
+  hideModal('modal-lang');
+  document.querySelectorAll('.lang-chip').forEach(c=>c.classList.toggle('selected', c.dataset.lang===lang));
+}
+function applyLang(){
+  const ids = ['find-match','subtitle','select-stake','your-stake','prize-pool','platform-fee',
+    'find-btn','free-btn','bot-btn','invite-btn','add-funds','withdraw-btn','finding','cancel',
+    'game-starting','draw-btn','resign-btn','pot-label','profile-title','nickname-label','save-nick',
+    'games','wins','losses','winrate','balance','deposit-btn','withdraw-btn2','rules-title',
+    'nav-play','nav-profile','nav-rules','contact-btn','add-funds-title','send-to','wallet-addr','memo-label',
+    'memo-warn','dep-steps','min-dep','done-dep','dep-fee','withdraw-title','available','wd-fee',
+    'min-wd','request-wd','prize-lbl','moves-lbl','play-again','withdraw-wins','back-menu',
+    'draw-offer','draw-desc','accept','decline','invite-title','invite-desc','your-link',
+    'link-expires','share-tg','free-title','free-finding','free-cancel',
+    'w-title','w-sub','w-f1-title','w-f1-desc','w-f2-title','w-f2-desc',
+    'w-f3-title','w-f3-desc','w-f4-title','w-f4-desc','w-start',
+  ];
+  ids.forEach(id=>{
+    const el=document.getElementById('t-'+id);
+    if(el) el.textContent=t(id);
+  });
+  const how=document.getElementById('w-how');
+  if(how) how.innerHTML=t('w-how');
+  buildRulesContent();
+  updateStakePreview();
+}
+function buildLangGrid(){
+  const grid=document.getElementById('lang-grid');
+  grid.innerHTML='';
+  Object.entries(LANGS).forEach(([code,data])=>{
+    const el=document.createElement('div');
+    el.className='lang-chip'+(code===currentLang?' selected':'');
+    el.dataset.lang=code;
+    el.innerHTML='<span class="lang-chip-flag">'+data.flag+'</span><div class="lang-chip-name">'+data.name+'</div>';
+    el.onclick=()=>setLang(code);
+    grid.appendChild(el);
+  });
+}
+function buildRulesContent(){
+  const r={
+    en:'<div class="rules-section"><h3>🎯 Objective</h3><p>Capture all opponent pieces or leave them with no legal moves.</p></div><div class="rules-section"><h3>🏁 Setup</h3><ul><li>8×8 board, play only on dark squares.</li><li>12 pieces each. ⚪ White starts bottom, ⚫ Black starts top.</li><li>⚪ White moves first.</li></ul></div><div class="rules-section"><h3>♟ Movement</h3><ul><li>Regular pieces move diagonally forward one square.</li><li>Reaching the far end → becomes a <span class="glossary-term">King ♛</span>.</li><li>Kings move any distance in any diagonal direction.</li></ul></div><div class="rules-section"><h3>⚔️ Captures</h3><ul><li><strong>Capturing is mandatory.</strong></li><li>Jump over adjacent opponent piece to empty square beyond.</li><li>Captures in all 4 directions (including backward).</li><li>Multi-jump: continue if another capture is possible.</li></ul></div><div class="rules-section"><h3>🏆 Winning</h3><ul><li>Capture all pieces or leave opponent no moves.</li><li>No move in 60 seconds = forfeit.</li><li>Resign or agree Draw at any time.</li></ul></div><div class="rules-section"><h3>💰 Stakes & Prizes</h3><ul><li>Stakes: $0.50 / $1 / $2 / $3 / $5 / $7 / $10 / $15 / $20 / $25 / $50 / $100</li><li>Winner gets <strong>95%</strong> of combined pot. Platform keeps 5%.</li></ul></div>',
+    uk:'<div class="rules-section"><h3>🎯 Мета</h3><p>Захопи всі шашки суперника або залиши його без ходів.</p></div><div class="rules-section"><h3>🏁 Початок</h3><ul><li>Дошка 8×8, гра лише на темних клітинках.</li><li>По 12 шашок. ⚪ Білі — знизу, ⚫ Чорні — зверху.</li><li>⚪ Білі ходять першими.</li></ul></div><div class="rules-section"><h3>♟ Рух</h3><ul><li>Звичайні шашки ходять вперед по діагоналі на 1 клітинку.</li><li>Досягнення останнього ряду → стає <span class="glossary-term">Дамкою ♛</span>.</li><li>Дамка ходить на будь-яку відстань у всіх напрямках.</li></ul></div><div class="rules-section"><h3>⚔️ Взяття</h3><ul><li><strong>Взяття обов\'язкове.</strong></li><li>Перестрибни через шашку суперника на порожню клітинку.</li><li>Взяття у всіх 4 напрямках (включаючи назад).</li><li>Серійне взяття: продовжуй якщо є ще можливість.</li></ul></div><div class="rules-section"><h3>🏆 Перемога</h3><ul><li>Забери всі шашки або залиши без ходів.</li><li>Без ходу 60 сек = поразка.</li><li>Можна здатись або запропонувати нічию.</li></ul></div><div class="rules-section"><h3>💰 Ставки та призи</h3><ul><li>Ставки: $0.50 / $1 / $2 / $3 / $5 / $7 / $10 / $15 / $20 / $25 / $50 / $100</li><li>Переможець отримує <strong>95%</strong> банку. Комісія платформи 5%.</li></ul></div>',
+  };
+  document.getElementById('rules-content').innerHTML = r[currentLang]||r.en;
+}
+
+// ════════════════════════════════════════════
+// SOUNDS
+// ════════════════════════════════════════════
+let audioCtx = null;
+function getCtx(){
+  if(!audioCtx) try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  return audioCtx;
+}
+function playSound(type){
+  const ctx=getCtx(); if(!ctx) return;
+  const now=ctx.currentTime;
+  try{
+    if(type==='move'){
+      const buf=ctx.createBuffer(1,ctx.sampleRate*.12,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<d.length;i++){const t2=i/ctx.sampleRate;d[i]=Math.sin(2*Math.PI*180*t2)*Math.exp(-t2*40)*.6+(Math.random()-.5)*Math.exp(-t2*80)*.3;}
+      const src=ctx.createBufferSource(); src.buffer=buf;
+      const g=ctx.createGain(); g.gain.value=.7;
+      src.connect(g); g.connect(ctx.destination); src.start(now);
+    } else if(type==='capture'){
+      const buf=ctx.createBuffer(1,ctx.sampleRate*.18,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let i=0;i<d.length;i++){const t2=i/ctx.sampleRate;d[i]=Math.sin(2*Math.PI*120*t2)*Math.exp(-t2*25)*.7+Math.sin(2*Math.PI*240*t2)*Math.exp(-t2*40)*.4+(Math.random()-.5)*Math.exp(-t2*60)*.25;}
+      const src=ctx.createBufferSource(); src.buffer=buf;
+      const g=ctx.createGain(); g.gain.value=.8;
+      src.connect(g); g.connect(ctx.destination); src.start(now);
+    } else if(type==='yourturn'){
+      [[440,0],[660,.16]].forEach(([freq,delay])=>{
+        const o=ctx.createOscillator(); const g=ctx.createGain();
+        o.type='sine'; o.frequency.value=freq;
+        const t2=now+delay;
+        g.gain.setValueAtTime(0,t2); g.gain.linearRampToValueAtTime(.26,t2+.02); g.gain.exponentialRampToValueAtTime(.001,t2+.5);
+        o.connect(g); g.connect(ctx.destination); o.start(t2); o.stop(t2+.5);
+      });
+    } else if(type==='win'){
+      [[523,0],[659,.1],[784,.2],[1047,.32]].forEach(([freq,delay])=>{
+        const o=ctx.createOscillator(); const g=ctx.createGain();
+        o.type='triangle'; o.frequency.value=freq;
+        const t2=now+delay;
+        g.gain.setValueAtTime(0,t2); g.gain.linearRampToValueAtTime(.2,t2+.03); g.gain.exponentialRampToValueAtTime(.001,t2+.45);
+        o.connect(g); g.connect(ctx.destination); o.start(t2); o.stop(t2+.5);
+      });
+    } else if(type==='king'){
+      [784,988,1175].forEach((freq,i)=>{
+        const o=ctx.createOscillator(); const g=ctx.createGain();
+        o.type='sine'; o.frequency.value=freq;
+        const t2=now+i*.08;
+        g.gain.setValueAtTime(0,t2); g.gain.linearRampToValueAtTime(.18,t2+.02); g.gain.exponentialRampToValueAtTime(.001,t2+.4);
+        o.connect(g); g.connect(ctx.destination); o.start(t2); o.stop(t2+.4);
+      });
+    }
+  }catch(e){}
+}
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+window.onload = function(){
+  // FIRST: ensure clean state - hide all screens and show lobby
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.classList.add('hidden');
+    s.style.display='none';
+  });
+  document.getElementById('screen-lobby').classList.remove('hidden');
+  document.getElementById('screen-lobby').style.removeProperty('display');
+  currentLang = detectLang();
+  buildStakeGrid();
+  buildLangGrid();
+  buildRulesContent();
+  checkInviteOnLaunch();
+  if(window.Telegram&&window.Telegram.WebApp){
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+    if(window.Telegram.WebApp.enableScrolling) window.Telegram.WebApp.enableScrolling();
+  }
+  var _savedNick = localStorage.getItem('cw_nickname');
+  var _tgName = (window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user&&window.Telegram.WebApp.initDataUnsafe.user.first_name)||'Player';
+  myPlayer = {
+    id:'init_'+Math.random().toString(36).slice(2,8),
+    nickname: _savedNick || _tgName,
+    balance:0, gamesPlayed:0, wins:0, losses:0,
+    tonAddress:null, depositMemo:null, depositAddress:'UQDU78cPo0yFGngpVsyjr5qcg9w3BFm_FPOMYVsk6JDMrgdu'
+  };
+  updateBalanceUI();
+  document.getElementById('nick-input').value = myPlayer.nickname;
+  if(!localStorage.getItem('cw_nickname') && myPlayer.nickname && myPlayer.nickname !== 'Player'){
+    localStorage.setItem('cw_nickname', myPlayer.nickname);
+  }
+  applyLang();
+
+  // If friend invite - show confirm screen immediately
+  if(pendingFriendCode){
+    var _code = pendingFriendCode;
+    pendingFriendCode = null;
+    localStorage.removeItem('cw_pending_friend');
+    window._pendingJoinCode = _code;
+    showScreen('confirm-friend');
+    var el = document.getElementById('confirm-game-code');
+    if(el) el.textContent = _code;
+  } else {
+    showScreen('lobby');
+    if(!localStorage.getItem('cw_welcomed') && !pendingInviteCode){
+      setTimeout(showWelcome, 500);
+    }
+  }
+  connectWS();
+
+  // Game over modal buttons - attach via JS for reliability in Telegram WebApp
+  setTimeout(function(){
+    var backBtn = document.getElementById('t-back-menu');
+    if(backBtn) backBtn.addEventListener('click', function(){ goLobby(); });
+    
+    var findBtn = document.getElementById('go-find-btn');
+    if(findBtn) findBtn.addEventListener('click', function(){
+      if(isPractice){
+        goLobby();
+        setTimeout(function(){ startPractice(); }, 300);
+      } else {
+        findNewOpponent();
+      }
+    });
+
+    var rematchBtn = document.getElementById('go-rematch-btn');
+    if(rematchBtn) rematchBtn.addEventListener('click', function(){ requestRematch(); });
+
+    var exitBtn = document.getElementById('go-exit-btn');
+    if(exitBtn) exitBtn.addEventListener('click', function(){ goLobby(); });
+  }, 500);
+};
+
+
+// ════════════════════════════════════════════
+// WEBSOCKET
+// ════════════════════════════════════════════
+function connectWS(){
+  try{
+    ws = new WebSocket(WS_URL);
+    ws.onopen = function(){
+      const tg=window.Telegram?.WebApp;
+      const tid=tg?.initDataUnsafe?.user?.id||('u'+Math.random().toString(36).slice(2,8));
+      const name=tg?.initDataUnsafe?.user?.first_name||'Player';
+      ws.send(JSON.stringify({type:'auth',telegramId:tid,name:name}));
+    };
+    ws.onmessage = function(e){ handleMsg(JSON.parse(e.data)); };
+    ws.onerror = function(){};
+    ws.onclose = function(){
+      if(myPlayer&&!isPractice){
+        // Reconnect faster if in a game
+        var delay = gameState ? 1000 : 4000;
+        setTimeout(connectWS, delay);
+      }
+    };
+  }catch(e){ setTimeout(connectWS,5000); }
+}
+function wsSend(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(msg)); }
+
+function handleMsg(msg){
+  switch(msg.type){
+    case 'authOk':
+      myPlayer = msg.player;
+      if(msg.player.depositMemo){ myPlayer.depositMemo=msg.player.depositMemo; myPlayer.depositAddress=msg.player.depositAddress||'UQDU78cPo0yFGngpVsyjr5qcg9w3BFm_FPOMYVsk6JDMrgdu'; }
+      if(msg.player.tonAddress) myPlayer.tonAddress=msg.player.tonAddress;
+      // Restore myColor if we were in a game
+      var savedColor = localStorage.getItem('cw_myColor');
+      var savedGameId = localStorage.getItem('cw_gameId');
+      if(savedColor && savedGameId && !myColor){
+        myColor = savedColor;
+      }
+      // ALWAYS restore user's custom nickname from localStorage
+      // Server resets on sleep - localStorage is the source of truth for nickname
+      var savedNick = localStorage.getItem('cw_nickname');
+      if(savedNick && savedNick.length >= 2) {
+        myPlayer.nickname = savedNick;
+        // Tell server to update too (async, non-blocking)
+        setTimeout(function(){ wsSend({type:'setNickname', nickname:savedNick}); }, 500);
+      }
+      updateBalanceUI(); updateProfileUI();
+      document.getElementById('nick-input').value = myPlayer.nickname||'';
+      setTimeout(joinPendingInvite, 600);
+      break;
+    case 'matched':
+      myColor = msg.color;
+      localStorage.setItem('cw_myColor', myColor);
+      localStorage.setItem('cw_gameId', msg.gameId||'');
+      clearWaitTimer(); clearInterval(freeWaitTimer); freeWaitTimer=null;
+      ['modal-free-waiting','modal-invite','modal-friend','modal-resign-confirm'].forEach(function(id){
+        var m=document.getElementById(id);
+        if(m){m.classList.add('hidden');m.style.display='none';}
+      });
+      // Reset friend modal to step1
+      friendCode = null;
+      var _fs1=document.getElementById('friend-step1');
+      var _fs2=document.getElementById('friend-step2');
+      if(_fs1) _fs1.style.display='';
+      if(_fs2) _fs2.style.display='none';
+      document.getElementById('vs-text').textContent = (myPlayer&&myPlayer.nickname||'You')+' vs '+msg.opponent.nickname;
+      document.getElementById('cd-color').textContent = msg.color==='white' ? t('you-are-white') : t('you-are-black');
+      document.getElementById('pot-val').textContent = msg.free ? t('free-game') : ('$'+((msg.pot||0)*0.95).toFixed(2));
+      var _meC=msg.color; var _opC=_meC==='white'?'black':'white';
+      document.getElementById('pc-me-name').textContent=myPlayer&&myPlayer.nickname||'You';
+      document.getElementById('pc-me-dot').className='color-dot '+_meC;
+      document.getElementById('pc-me-sub').textContent=_meC==='white'?'⚪':'⚫';
+      document.getElementById('pc-op-name').textContent=msg.opponent.nickname||'Opponent';
+      document.getElementById('pc-op-dot').className='color-dot '+_opC;
+      document.getElementById('pc-op-sub').textContent=_opC==='white'?'⚪':'⚫';
+      showScreen('countdown');
+      break;
+    case 'countdown':
+      document.getElementById('cd-num').textContent = msg.count;
+      break;
+    case 'start': break;
+    case 'gameState': {
+      var wasMyTurn = gameState ? gameState.myTurn : null;
+      // Track opponent move in history
+      if(gameState && wasMyTurn===false && msg.myTurn===true && msg.lastMove){
+        addToMoveHistory(myColor==='white'?'black':'white', msg.lastMove);
+        // Show opponent's last move
+        lastMoveFrom = {r:msg.lastMove.from.r, c:msg.lastMove.from.c};
+        lastMoveTo = {r:msg.lastMove.steps[msg.lastMove.steps.length-1].r, c:msg.lastMove.steps[msg.lastMove.steps.length-1].c};
+        var _lml2 = document.getElementById('last-move-label');
+        if(_lml2){
+          var _cols2='ABCDEFGH';
+          _lml2.textContent = _cols2[lastMoveFrom.c]+(8-lastMoveFrom.r)+' → '+_cols2[lastMoveTo.c]+(8-lastMoveTo.r);
+        }
+      }
+      gameState = msg;
+      // Show game screen if not already showing
+      var gsCountdown = document.getElementById('screen-countdown');
+      var gsGame = document.getElementById('screen-game');
+      var gsLobby = document.getElementById('screen-lobby');
+      if(gsCountdown && !gsCountdown.classList.contains('hidden')){
+        showGameScreen();
+      } else if(gsLobby && !gsLobby.classList.contains('hidden') && myColor){
+        // Reconnected during game - go straight to game screen
+        showGameScreen();
+      }
+      renderBoard(); updateTurnBar();
+      if(wasMyTurn===true && !msg.myTurn) playSound('move');
+      break;
+    }
+    case 'gameOver':
+      // Update board to final position if provided
+      if(msg.board && gameState){
+        gameState.board = msg.board;
+        gameState.myTurn = false;
+        gameState.validMoves = [];
+        renderBoard();
+      }
+      handleGameOver(msg);
+      break;
+    case 'balanceUpdate':
+      if(myPlayer){ myPlayer.balance=msg.balance; updateBalanceUI(); } break;
+    case 'drawOffer': showModal('modal-draw'); break;
+    case 'drawDeclined': toast(t('decline')); break;
+    case 'nicknameUpdated':
+      if(myPlayer) myPlayer.nickname=msg.nickname;
+      toast('✅ Saved'); break;
+    case 'depositConfirmed': toast('✅ +$'+parseFloat(msg.amount).toFixed(2)+' USDT'); break;
+    case 'depositInfo':
+      if(myPlayer){ myPlayer.depositAddress=msg.address; myPlayer.depositMemo=msg.memo; }
+      document.getElementById('ton-addr').textContent = msg.address;
+      document.getElementById('ton-memo').textContent = msg.memo;
+      break;
+    case 'withdrawalRequested': hideModal('modal-withdraw'); toast('⏳ '+t('request-wd')); break;
+    case 'withdrawalCompleted': toast('✅ $'+msg.amount+' sent'); break;
+    case 'searchCancelled': clearWaitTimer(); showScreen('lobby'); break;
+    case 'error': toast('⚠️ '+msg.message); break;
+    case 'rematchAccepted':
+      // Both agreed - start new game
+      if(rematchTimer){clearTimeout(rematchTimer);rematchTimer=null;}
+      var gm=document.getElementById('modal-gameover'); if(gm) gm.style.cssText='display:none';
+      toast('🎮 Реванш! Починаємо...');
+      break;
+    case 'rematchDeclined':
+      // Opponent said no
+      if(rematchTimer){clearTimeout(rematchTimer);rematchTimer=null;}
+      var statusEl2=document.getElementById('go-rematch-status');
+      if(statusEl2) statusEl2.textContent='😔 Суперник відмовився від реваншу';
+      var rematchBtn2=document.getElementById('go-rematch-btn');
+      if(rematchBtn2){rematchBtn2.style.display='none';}
+      var exitBtn=document.getElementById('go-exit-btn');
+      if(exitBtn){exitBtn.textContent='← Головне меню';exitBtn.style.width='100%';}
+      break;
+    case 'rematchRequest':
+      // Opponent wants rematch - show notification
+      var statusEl3=document.getElementById('go-rematch-status');
+      if(statusEl3) statusEl3.textContent='🔄 Суперник хоче зіграти ще раз!';
+      break;
+    case 'friendWaiting':
+      var fw = document.getElementById('free-wait-time');
+      if(fw) fw.textContent = 'Чекаємо на друга...';
+      break;
+  }
+}
+
+// ════════════════════════════════════════════
+// SCREENS
+// ════════════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.modal-overlay').forEach(function(m){
+    m.classList.add('hidden');
+    m.style.display='none';
+  });
+  document.querySelectorAll('.screen').forEach(function(s){
+    s.classList.add('hidden');
+    s.style.display='none';
+  });
+  var el = document.getElementById('screen-'+id);
+  if(el){ 
+    el.classList.remove('hidden');
+    el.style.removeProperty('display');
+    el.scrollTop = 0;
+  }
+  window.scrollTo(0,0);
+  var nav=document.getElementById('main-nav');
+  if(nav) nav.style.display = ['lobby','profile','rules'].indexOf(id)>=0 ? '' : 'none';
+}
+function showGameScreen(){ showScreen('game'); }
+function switchTab(id){
+  showScreen(id);
+  document.querySelectorAll('.nav-tab').forEach(function(t2){t2.classList.remove('active');});
+  var el=document.getElementById('tab-'+id);
+  if(el) el.classList.add('active');
+}
+function showWelcome(){
+  var wt=LANGS[currentLang]||LANGS.en;
+  ['w-title','w-sub','w-f1-title','w-f1-desc','w-f2-title','w-f2-desc',
+   'w-f3-title','w-f3-desc','w-f4-title','w-f4-desc','w-start'].forEach(function(id){
+    var el=document.getElementById(id); if(el&&wt[id]) el.textContent=wt[id];
+  });
+  var how=document.getElementById('w-how');
+  if(how&&wt['w-how']) how.innerHTML=wt['w-how'];
+  showModal('modal-welcome');
+}
+
+// ════════════════════════════════════════════
+// LOBBY
+// ════════════════════════════════════════════
+function buildStakeGrid(){
+  var grid=document.getElementById('stake-grid');
+  grid.innerHTML='';
+  STAKES.forEach(function(s){
+    var el=document.createElement('button');
+    el.className='stake-chip'+(s===selectedStake?' selected':'');
+    el.innerHTML='<div class="stake-chip-val">$'+s+'</div>';
+    el.onclick=function(){
+      selectedStake=s;
+      document.querySelectorAll('#stake-grid .stake-chip').forEach(function(c){c.classList.remove('selected');});
+      el.classList.add('selected');
+      updateStakePreview();
+    };
+    grid.appendChild(el);
+  });
+}
+function updateStakePreview(){
+  document.getElementById('sel-stake').textContent='$'+selectedStake;
+  document.getElementById('sel-prize').textContent='$'+(selectedStake*2*0.95).toFixed(2);
+}
+function findGame(){
+  if(!myPlayer) return toast('Connecting...');
+  if(myPlayer.balance<selectedStake){ openDeposit(); return; }
+  wsSend({type:'findGame',stake:selectedStake});
+  showScreen('waiting');
+  document.getElementById('wait-stake').textContent='$'+selectedStake;
+  waitSecs=0;
+  waitTimer=setInterval(function(){waitSecs++;document.getElementById('wait-time').textContent=waitSecs+'s';},1000);
+}
+function clearWaitTimer(){ clearInterval(waitTimer); waitTimer=null; }
+function cancelSearch(){ wsSend({type:'cancelSearch'}); clearWaitTimer(); showScreen('lobby'); }
+
+// ════════════════════════════════════════════
+// CHECKERS LOGIC
+// ════════════════════════════════════════════
+function inB(r,c){return r>=0&&r<8&&c>=0&&c<8;}
+function kingSlide(board,r,c,dr,dc){
+  var sq=[]; var nr=r+dr,nc=c+dc;
+  while(inB(nr,nc)){if(board[nr+','+nc])break;sq.push({r:nr,c:nc});nr+=dr;nc+=dc;}
+  return sq;
+}
+function findCaptures(board,r,c,color,isKing,captured){
+  var opp=color==='white'?'black':'white';
+  var dirs=[[-1,-1],[-1,1],[1,-1],[1,1]];
+  var seqs=[];
+  for(var di=0;di<dirs.length;di++){
+    var dr=dirs[di][0],dc=dirs[di][1];
+    if(isKing){
+      var nr=r+dr,nc=c+dc;
+      while(inB(nr,nc)){
+        var k=nr+','+nc;
+        if(!board[k]){nr+=dr;nc+=dc;continue;}
+        if(board[k].color!==opp||captured.indexOf(k)>=0)break;
+        var lr=nr+dr,lc=nc+dc;
+        while(inB(lr,lc)){
+          var lk=lr+','+lc; if(board[lk])break;
+          var nb=Object.assign({},board); nb[lk]=nb[r+','+c]; delete nb[r+','+c];
+          var f=findCaptures(nb,lr,lc,color,true,captured.concat([k]));
+          if(f.length>0) f.forEach(function(x){seqs.push([{r:lr,c:lc,captured:k}].concat(x));});
+          else seqs.push([{r:lr,c:lc,captured:k}]);
+          lr+=dr;lc+=dc;
+        }
+        break;
+      }
+    } else {
+      var mr=r+dr,mc=c+dc,lr2=r+dr*2,lc2=c+dc*2;
+      if(!inB(mr,mc)||!inB(lr2,lc2))continue;
+      var mk=mr+','+mc,lk2=lr2+','+lc2;
+      if(!board[mk]||board[mk].color!==opp||captured.indexOf(mk)>=0)continue;
+      if(board[lk2])continue;
+      var nb2=Object.assign({},board); nb2[lk2]=nb2[r+','+c]; delete nb2[r+','+c];
+      var bk=(color==='white'&&lr2===0)||(color==='black'&&lr2===7);
+      var f2=findCaptures(nb2,lr2,lc2,color,bk,captured.concat([mk]));
+      if(f2.length>0) f2.forEach(function(x){seqs.push([{r:lr2,c:lc2,captured:mk}].concat(x));});
+      else seqs.push([{r:lr2,c:lc2,captured:mk}]);
+    }
+  }
+  return seqs;
+}
+function getValidMoves(board,color){
+  var moves=[],captures=[];
+  Object.entries(board).forEach(function(entry){
+    var key=entry[0],piece=entry[1];
+    if(piece.color!==color)return;
+    var parts=key.split(','); var r=parseInt(parts[0]),c=parseInt(parts[1]);
+    var seqs=findCaptures(board,r,c,color,piece.king,[]);
+    seqs.forEach(function(seq){captures.push({from:{r:r,c:c},steps:seq});});
+    if(seqs.length===0){
+      if(piece.king){
+        [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(function(d){
+          kingSlide(board,r,c,d[0],d[1]).forEach(function(sq){
+            moves.push({from:{r:r,c:c},steps:[{r:sq.r,c:sq.c,captured:null}]});
+          });
+        });
+      } else {
+        var dirs2=color==='white'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]];
+        dirs2.forEach(function(d){
+          var nr=r+d[0],nc=c+d[1];
+          if(!inB(nr,nc))return;
+          if(!board[nr+','+nc]) moves.push({from:{r:r,c:c},steps:[{r:nr,c:nc,captured:null}]});
+        });
+      }
+    }
+  });
+  return captures.length>0?captures:moves;
+}
+function applyMove(board,move){
+  var nb=Object.assign({},board);
+  var fk=move.from.r+','+move.from.c;
+  var piece=Object.assign({},nb[fk]);
+  delete nb[fk];
+  var fr=move.from.r,fc=move.from.c;
+  move.steps.forEach(function(step){
+    if(step.captured) delete nb[step.captured];
+    fr=step.r; fc=step.c;
+  });
+  nb[fr+','+fc]=piece;
+  if(piece.color==='white'&&fr===0) nb[fr+','+fc]=Object.assign({},piece,{king:true});
+  if(piece.color==='black'&&fr===7) nb[fr+','+fc]=Object.assign({},piece,{king:true});
+  return nb;
+}
+function countPieces(board,color){
+  return Object.values(board).filter(function(p){return p.color===color;}).length;
+}
+
+// ════════════════════════════════════════════
+// BOARD RENDERING — гравець завжди знизу
+// ════════════════════════════════════════════
+function renderBoard(){
+  var boardEl=document.getElementById('board');
+  boardEl.innerHTML='';
+  if(!gameState) return;
+  // Debug: show state
+  var vm=gameState.validMoves||[];
+  if(vm.length===0 && gameState.myTurn) toast('myTurn=true but 0 validMoves!');
+  var board=gameState.board;
+  var validMoves=gameState.validMoves||[];
+  var myTurn=gameState.myTurn;
+  var flip=myColor==='black'; // якщо чорні — перевернути дошку
+
+  var selectableKeys=new Set();
+  var targetKeys=new Set();
+  // Last move shown via outline only
+  if(myTurn) validMoves.forEach(function(m){selectableKeys.add(m.from.r+','+m.from.c);});
+  if(myTurn&&selectedPiece){
+    validMoves.filter(function(m){return m.from.r===selectedPiece.r&&m.from.c===selectedPiece.c;})
+      .forEach(function(m){
+        // Show ALL intermediate landing squares, not just the final one
+        m.steps.forEach(function(step){
+          if(!step.captured) return; // only show capture landings
+          targetKeys.add(step.r+','+step.c);
+        });
+        // Also always show the final landing
+        var last=m.steps[m.steps.length-1];
+        targetKeys.add(last.r+','+last.c);
+      });
+  }
+
+  for(var ri=0;ri<8;ri++){
+    for(var ci=0;ci<8;ci++){
+      var row=flip?(7-ri):ri;
+      var col=flip?(7-ci):ci;
+      var isLight=(row+col)%2===0;
+      var key=row+','+col;
+      var piece=board[key];
+      var isSelected=selectedPiece&&selectedPiece.r===row&&selectedPiece.c===col;
+      var isTarget=targetKeys.has(key);
+      var isSelectable=selectableKeys.has(key);
+
+      var sq=document.createElement('div');
+      sq.className='sq '+(isLight?'light':'dark');
+      sq.dataset.row=row; sq.dataset.col=col;
+      if(isSelected) sq.classList.add('selected');
+      if(isTarget) sq.classList.add('target');
+
+
+      if(piece){
+        var p=document.createElement('div');
+        p.className='piece '+piece.color+(piece.king?' king':'')+(isSelectable?' selectable':'');
+        if(isSelectable&&myTurn){
+          (function(r,c){p.onclick=function(){selectPieceAt(r,c);};})(row,col);
+        }
+        sq.appendChild(p);
+      } else if(isTarget){
+        var dot=document.createElement('div');
+        dot.className='move-dot';
+        (function(r,c){sq.onclick=function(){makeMoveAt(r,c);};})(row,col);
+        sq.appendChild(dot);
+      }
+      boardEl.appendChild(sq);
+    }
+  }
+  document.getElementById('pc-me').classList.toggle('active',myTurn);
+  document.getElementById('pc-op').classList.toggle('active',!myTurn);
+}
+
+function selectPieceAt(row,col){
+  if(!gameState||!gameState.myTurn||animating) return;
+  if(selectedPiece&&selectedPiece.r===row&&selectedPiece.c===col) selectedPiece=null;
+  else selectedPiece={r:row,c:col};
+  renderBoard();
+}
+
+function makeMoveAt(toRow,toCol){
+  if(!selectedPiece||!gameState||!gameState.myTurn||animating) return;
+  var move=null;
+  var validMoves=gameState.validMoves||[];
+  // First try exact final destination
+  validMoves.forEach(function(m){
+    var last=m.steps[m.steps.length-1];
+    if(m.from.r===selectedPiece.r&&m.from.c===selectedPiece.c&&last.r===toRow&&last.c===toCol) move=m;
+  });
+  // If clicked an intermediate square — find shortest move that lands there
+  if(!move){
+    var shortest=null;
+    validMoves.forEach(function(m){
+      if(m.from.r!==selectedPiece.r||m.from.c!==selectedPiece.c) return;
+      m.steps.forEach(function(step,idx){
+        if(step.r===toRow&&step.c===toCol&&step.captured){
+          // Build a sub-move up to this step
+          if(!shortest||idx<shortest.stepCount){
+            shortest={move:m,stepCount:idx};
+          }
+        }
+      });
+    });
+    if(shortest) move=shortest.move;
+  }
+  if(!move) return;
+  selectedPiece=null;
+  var isCapture=move.steps.some(function(s){return s.captured;});
+  playSound(isCapture?'capture':'move');
+  // Track last move visually
+  lastMoveFrom = {r:move.from.r, c:move.from.c};
+  lastMoveTo = {r:move.steps[move.steps.length-1].r, c:move.steps[move.steps.length-1].c};
+  var _lml = document.getElementById('last-move-label');
+  if(_lml){
+    var _cols='ABCDEFGH';
+    _lml.textContent = _cols[move.from.c]+(8-move.from.r)+' → '+_cols[lastMoveTo.c]+(8-lastMoveTo.r);
+  }
+  if(isPractice){
+    applyPracticeMove(move);
+  } else {
+    addToMoveHistory(myColor, move);
+    wsSend({type:'move',move:move});
+  }
+}
+
+function updateTurnBar(){
+  var bar=document.getElementById('turn-bar');
+  if(!bar) return;
+  if(gameState&&gameState.myTurn){
+    bar.className='turn-bar my-turn';
+    bar.textContent=t('your-turn');
+    if(_lastMyTurn===false) playSound('yourturn');
+    _lastMyTurn=true;
+  } else {
+    bar.className='turn-bar op-turn';
+    bar.textContent=isPractice?t('bot-thinking'):t('opp-turn');
+    _lastMyTurn=false;
+  }
+}
+
+// ════════════════════════════════════════════
+// GAME ACTIONS
+// ════════════════════════════════════════════
+function doResign(){
+  var modal = document.getElementById('modal-resign-confirm');
+  if(!modal){ toast('ERROR: modal not found'); return; }
+  modal.classList.remove('hidden');
+  modal.removeAttribute('style');
+}
+function doResignConfirmed(){
+  var rm = document.getElementById('modal-resign-confirm');
+  if(rm) rm.classList.add('hidden');
+  if(!isPractice) wsSend({type:'resign'});
+  gameState = null;
+  // Show result screen
+  document.getElementById('result-icon').textContent = '😞';
+  document.getElementById('result-title').textContent = t('you-lost');
+  document.getElementById('result-sub').textContent = t('you-resigned');
+  var btn1 = document.getElementById('result-btn1');
+  if(btn1) btn1.textContent = isPractice ? '🔄 Грати знову' : '🔍 Знайти суперника';
+  showScreen('result');
+}
+function offerDraw(){
+  if(isPractice){ toast('N/A in practice'); return; }
+  wsSend({type:'offerDraw'}); toast('Draw offer sent');
+}
+function acceptDraw(){ wsSend({type:'acceptDraw'}); hideModal('modal-draw'); }
+function declineDraw(){ wsSend({type:'declineDraw'}); hideModal('modal-draw'); }
+
+function handleGameOver(msg){
+  if(isPractice) return;
+  var won = msg.winner===myColor;
+  var isDraw = msg.winner==='draw';
+  var reasons = {timeout:won?t('opp-timeout'):t('you-timeout'),resign:won?t('opp-resigned'):t('you-resigned'),disconnect:won?t('opp-disconnected'):'',normal:''};
+  document.getElementById('result-icon').textContent = isDraw?'🤝':won?'🏆':'😞';
+  document.getElementById('result-title').textContent = isDraw?t('its-draw'):won?t('you-won'):t('you-lost');
+  document.getElementById('result-sub').textContent = reasons[msg.reason]||'';
+  var btn1=document.getElementById('result-btn1');
+  if(btn1) btn1.textContent='🔍 Знайти суперника';
+  gameState=null;
+  showScreen('result');
+}
+
+function showGameOver(won,reason,prize,moves,isDraw,gameId,opponentId){
+  // Stop bot immediately
+  gameState=null;
+  myRematchChoice=null;
+  // Credit money bot winnings
+  if(isPractice && moneyBotStake>0){
+    if(won && !isDraw){
+      if(myPlayer) myPlayer.balance += moneyBotPrize;
+      updateBalanceUI();
+      prize = moneyBotPrize;
+      toast('Виграш $'+moneyBotPrize.toFixed(2)+' зараховано!');
+    }
+    moneyBotStake=0; moneyBotPrize=0;
+  }
+  if(won&&!isDraw) playSound('win');
+  document.getElementById('go-icon').textContent=isDraw?'🤝':won?'🏆':'😞';
+  document.getElementById('go-title').textContent=isDraw?t('its-draw'):won?t('you-won'):t('you-lost');
+  document.getElementById('go-sub').textContent=reason||'';
+  document.getElementById('go-prize').textContent=prize?'$'+prize.toFixed(2):'—';
+  document.getElementById('go-moves').textContent=moves||'—';
+  
+  var isRealGame = !isPractice && opponentId && reason !== 'disconnect';
+  var rematchSec = document.getElementById('go-rematch-section');
+  var practiceSec = document.getElementById('go-practice-section');
+  
+  if(isRealGame && opponentId){
+    // Show rematch UI
+    rematchGameId = gameId;
+    rematchOpponentId = opponentId;
+    if(rematchSec) rematchSec.style.display='';
+    if(practiceSec) practiceSec.style.display='none';
+    var statusEl = document.getElementById('go-rematch-status');
+    if(statusEl) statusEl.textContent='⏳ Обери дію (60 сек)...';
+    var rematchBtn = document.getElementById('go-rematch-btn');
+    if(rematchBtn) rematchBtn.disabled=false;
+    // Auto-exit after 60 seconds
+    if(rematchTimer) clearTimeout(rematchTimer);
+    rematchTimer = setTimeout(function(){ goLobby(); }, 60000);
+  } else {
+    if(rematchSec) rematchSec.style.display='none';
+    if(practiceSec) practiceSec.style.display='';
+    // Update find button text
+    var findBtn=document.getElementById('go-find-btn');
+    if(findBtn){
+      if(isPractice){
+        findBtn.textContent='🔄 Грати знову';
+        findBtn.onclick=function(){hideModal('modal-gameover');startPractice();};
+      } else {
+        findBtn.textContent='🔍 Знайти нового суперника';
+        findBtn.onclick=findNewOpponent;
+      }
+    }
+  }
+  // Show modal
+  // Replace game screen content directly - avoids all z-index issues
+  var screenGame = document.getElementById('screen-game');
+  if(screenGame && !document.getElementById('screen-lobby').classList.contains('hidden') === false){
+    // We're on game screen - replace content
+  }
+  var goEl = document.getElementById('modal-gameover');
+  if(goEl){
+    goEl.classList.remove('hidden');
+    goEl.style.cssText = 'display:flex!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:2147483647!important;background:rgba(0,0,0,.85)!important;align-items:center!important;justify-content:center!important;';
+  }
+}
+
+function contactUs(){
+  if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.openTelegramLink){
+    window.Telegram.WebApp.openTelegramLink('https://t.me/Insure_bet');
+  } else {
+    window.open('https://t.me/Insure_bet','_blank');
+  }
+}
+
+// ════════════════════════════════════════════
+// SMART BOT — Minimax with Alpha-Beta pruning
+// ════════════════════════════════════════════
+function evaluateBoard(board){
+  var score=0;
+  Object.entries(board).forEach(function(e){
+    var key=e[0],piece=e[1];
+    var parts=key.split(',');
+    var r=parseInt(parts[0]),c=parseInt(parts[1]);
+    if(piece.color==='black'){
+      // Black pieces score positively
+      score += piece.king ? 10 : 5;
+      // Prefer advancing (higher row = closer to king)
+      score += r * 0.3;
+      // Prefer center columns
+      score += (3.5 - Math.abs(c - 3.5)) * 0.2;
+      // King safety — avoid edges
+      if(piece.king) score += (3.5 - Math.abs(r-3.5)) * 0.3;
+    } else {
+      score -= piece.king ? 10 : 5;
+      score -= (7 - r) * 0.3;
+      score -= (3.5 - Math.abs(c - 3.5)) * 0.2;
+      if(piece.king) score -= (3.5 - Math.abs(r-3.5)) * 0.3;
+    }
+  });
+  return score;
+}
+
+function minimax(board, depth, alpha, beta, maximizing){
+  var color = maximizing ? 'black' : 'white';
+  var moves = getValidMoves(board, color);
+
+  if(depth === 0 || moves.length === 0){
+    return evaluateBoard(board);
+  }
+
+  if(maximizing){
+    var maxVal = -Infinity;
+    for(var i=0; i<moves.length; i++){
+      var nb = applyMove(board, moves[i]);
+      var val = minimax(nb, depth-1, alpha, beta, false);
+      if(val > maxVal) maxVal = val;
+      if(val > alpha) alpha = val;
+      if(beta <= alpha) break; // alpha-beta cutoff
+    }
+    return maxVal;
+  } else {
+    var minVal = Infinity;
+    for(var i=0; i<moves.length; i++){
+      var nb = applyMove(board, moves[i]);
+      var val = minimax(nb, depth-1, alpha, beta, true);
+      if(val < minVal) minVal = val;
+      if(val < beta) beta = val;
+      if(beta <= alpha) break;
+    }
+    return minVal;
+  }
+}
+
+function getBestBotMove(board, depth){
+  var moves = getValidMoves(board, 'black');
+  if(!moves.length) return null;
+  var bestMove = null;
+  var bestVal = -Infinity;
+  for(var i=0; i<moves.length; i++){
+    var nb = applyMove(board, moves[i]);
+    var val = minimax(nb, depth-1, -Infinity, Infinity, false);
+    if(val > bestVal){
+      bestVal = val;
+      bestMove = moves[i];
+    }
+  }
+  return bestMove;
+}
+
+function findNewOpponent(){
+  hideModal('modal-gameover');
+  if(rematchTimer){clearTimeout(rematchTimer);rematchTimer=null;}
+  isPractice=false; isFreeGame=false; gameState=null;
+  selectedPiece=null; myColor=null; _lastMyTurn=null;
+  animating=false; lastMoveFrom=null; lastMoveTo=null;
+  showScreen('lobby');
+  // Auto-start search with same stake
+  setTimeout(function(){ findGame(); }, 300);
+}
+
+function requestRematch(){
+  if(!rematchOpponentId){ goLobby(); return; }
+  myRematchChoice='yes';
+  var btn=document.getElementById('go-rematch-btn');
+  if(btn){ btn.disabled=true; btn.textContent='✅ Чекаємо суперника...'; }
+  var status=document.getElementById('go-rematch-status');
+  if(status) status.textContent='⏳ Чекаємо рішення суперника...';
+  wsSend({type:'rematchRequest', opponentId:rematchOpponentId});
+}
+
+function showBotResult(won){
+  document.getElementById('result-icon').textContent = won?'🏆':'😞';
+  document.getElementById('result-title').textContent = won?t('you-won'):t('you-lost');
+  document.getElementById('result-sub').textContent = '';
+  document.getElementById('result-btn1').textContent = '🔄 Грати знову';
+  showScreen('result');
+  gameState=null;
+}
+
+function goLobby(){
+  moneyBotStake=0; moneyBotPrize=0;
+  ['modal-gameover','modal-resign-confirm','modal-draw','modal-free-waiting','modal-friend'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){ el.classList.add('hidden'); el.removeAttribute('style'); }
+  });
+  if(rematchTimer){ clearTimeout(rematchTimer); rematchTimer=null; }
+  rematchGameId=null; rematchOpponentId=null; myRematchChoice=null;
+  isPractice=false; isFreeGame=false; gameState=null; selectedPiece=null;
+  myColor=null; _lastMyTurn=null; animating=false;
+  lastMoveFrom=null; lastMoveTo=null;
+  localStorage.removeItem('cw_myColor');
+  localStorage.removeItem('cw_gameId');
+  showScreen('lobby');
+}
+function startPractice(){
+  isPractice=true; isFreeGame=false; myColor='white';
+  selectedPiece=null; animating=false; _lastMyTurn=null;
+  if(!myPlayer) myPlayer={id:'practice',nickname:'You',balance:0,gamesPlayed:0,wins:0,losses:0};
+  document.getElementById('vs-text').textContent=(myPlayer.nickname||'You')+' vs 🤖 Bot';
+  document.getElementById('cd-color').textContent=t('you-are-white')+' · '+t('practice');
+  document.getElementById('pot-val').textContent=t('practice');
+  showScreen('countdown');
+  var count=3;
+  document.getElementById('cd-num').textContent=count;
+  var cd=setInterval(function(){
+    count--;
+    if(count>0){ document.getElementById('cd-num').textContent=count; }
+    else { clearInterval(cd); launchPracticeGame(); }
+  },1000);
+}
+
+function launchPracticeGame(){
+  var board={};
+  for(var r=0;r<3;r++) for(var c=0;c<8;c++) if((r+c)%2===1) board[r+','+c]={color:'black',king:false};
+  for(var r=5;r<8;r++) for(var c=0;c<8;c++) if((r+c)%2===1) board[r+','+c]={color:'white',king:false};
+  moveHistoryList=[]; lastMoveFrom=null; lastMoveTo=null;
+  gameState={board:board,turn:'white',myTurn:true,validMoves:getValidMoves(board,'white')};
+  document.getElementById('pc-me-name').textContent=myPlayer?myPlayer.nickname:'You';
+  document.getElementById('pc-me-dot').className='color-dot white';
+  document.getElementById('pc-me-sub').textContent='⚪';
+  document.getElementById('pc-op-name').textContent='🤖 Bot';
+  document.getElementById('pc-op-dot').className='color-dot black';
+  document.getElementById('pc-op-sub').textContent='⚫';
+  showScreen('game');
+  renderBoard();
+  updateTurnBar();
+}
+
+function applyPracticeMove(move){
+  // Apply player move immediately (no fancy animation for now — simple and reliable)
+  var isCapture=move.steps.some(function(s){return s.captured;});
+  if(isCapture) playSound('capture'); else playSound('move');
+  gameState.board=applyMove(gameState.board,move);
+  gameState.turn='black'; gameState.myTurn=false; gameState.validMoves=[];
+  selectedPiece=null;
+  var last=move.steps[move.steps.length-1];
+  if(gameState.board[last.r+','+last.c]&&gameState.board[last.r+','+last.c].king) playSound('king');
+  renderBoard();
+  _lastMyTurn=true; // reset so bot turn doesn't trigger sound
+  updateTurnBar();
+  var bp=countPieces(gameState.board,'black');
+  if(bp===0){ document.getElementById('result-icon').textContent='🏆'; document.getElementById('result-title').textContent=t('you-won'); document.getElementById('result-sub').textContent=''; document.getElementById('result-btn1').textContent='🔄 Грати знову'; showScreen('result'); gameState=null; return; }
+  var botM=getValidMoves(gameState.board,'black');
+  if(botM.length===0){ document.getElementById('result-icon').textContent='🏆'; document.getElementById('result-title').textContent=t('you-won'); document.getElementById('result-sub').textContent=''; document.getElementById('result-btn1').textContent='🔄 Грати знову'; showScreen('result'); gameState=null; return; }
+  setTimeout(botDoMove, 500+Math.floor(Math.random()*400));
+}
+
+function botDoMove(){
+  if(!gameState||!isPractice||gameState.turn!=='black'||animating) return;
+  // If modal is showing - game is over, stop bot
+  if(!document.getElementById('modal-gameover').classList.contains('hidden')) return;
+  var bm=getValidMoves(gameState.board,'black');
+  if(!bm.length){ showGameOver(true,t('opp-resigned'),0,0); return; }
+  // Use minimax depth 5 for strong play
+  var chosen = getBestBotMove(gameState.board, 5) || bm[Math.floor(Math.random()*bm.length)];
+  var isCapture=chosen.steps.some(function(s){return s.captured;});
+  if(isCapture) playSound('capture'); else playSound('move');
+  addToMoveHistory('black', chosen);
+  gameState.board=applyMove(gameState.board,chosen);
+  gameState.turn='white'; gameState.myTurn=true;
+  selectedPiece=null;
+  var wp=countPieces(gameState.board,'white');
+  if(!wp){ gameState.validMoves=[]; renderBoard(); showBotResult(false); return; }
+  gameState.validMoves=getValidMoves(gameState.board,'white');
+  if(!gameState.validMoves.length){ renderBoard(); showBotResult(false); return; }
+  renderBoard();
+  _lastMyTurn=false; // trigger yourturn sound
+  updateTurnBar();
+}
+
+// ════════════════════════════════════════════
+// FREE GAME vs Human
+// ════════════════════════════════════════════
+function findFreeGame(){
+  isFreeGame=true; isPractice=false;
+  var params=new URLSearchParams(window.location.search);
+  var inv=params.get('invite');
+  if(inv){ wsSend({type:'joinInvite',code:inv}); showModal('modal-free-waiting'); return; }
+  wsSend({type:'findFreeGame'}); showModal('modal-free-waiting');
+  freeWaitSecs=0;
+  freeWaitTimer=setInterval(function(){freeWaitSecs++;document.getElementById('free-wait-time').textContent=freeWaitSecs+'s';},1000);
+}
+function cancelFreeSearch(){
+  isFreeGame=false; clearInterval(freeWaitTimer); freeWaitTimer=null;
+  wsSend({type:'cancelFreeSearch'});
+}
+
+// ════════════════════════════════════════════
+// INVITE
+// ════════════════════════════════════════════
+function inviteFriend(){
+  var code=(myPlayer?myPlayer.id:'guest')+'_'+Date.now().toString(36);
+  wsSend({type:'createInvite',code:code});
+  var url='https://t.me/CheckersWinGameBot/CheckersWin?startapp=inv_'+code;
+  document.getElementById('invite-link-text').textContent=url;
+  showModal('modal-invite');
+}
+function copyInviteLink(){
+  var link=document.getElementById('invite-link-text').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(link).then(function(){
+    document.getElementById('copy-btn').textContent='✅ Copied!';
+    setTimeout(function(){document.getElementById('copy-btn').textContent='📋 Copy Link';},2000);
+  });
+}
+function shareInviteLink(){
+  var link=document.getElementById('invite-link-text').textContent;
+  if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.shareUrl) window.Telegram.WebApp.shareUrl(link);
+  else if(navigator.share) navigator.share({title:'Play Checkers!',url:link});
+  else copyInviteLink();
+}
+function checkInviteOnLaunch(){
+  var tg=window.Telegram&&window.Telegram.WebApp;
+  var param=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param)||'';
+  if(param.startsWith('inv_')) pendingInviteCode=param.slice(4);
+}
+function joinPendingInvite(){
+  if(!pendingInviteCode) return;
+  var code=pendingInviteCode; pendingInviteCode=null;
+  isFreeGame=true; isPractice=false;
+  wsSend({type:'joinInvite',code:code});
+  showModal('modal-free-waiting');
+}
+
+// ════════════════════════════════════════════
+// PROFILE
+// ════════════════════════════════════════════
+function saveNickname(){
+  var nick=document.getElementById('nick-input').value.trim();
+  if(nick.length<2) return toast('Min 2 chars');
+  wsSend({type:'setNickname',nickname:nick});
+  if(myPlayer) myPlayer.nickname=nick;
+  localStorage.setItem('cw_nickname', nick);
+  toast('✅ '+t('save-nick'));
+}
+function updateProfileUI(){
+  if(!myPlayer) return;
+  document.getElementById('nick-input').value=myPlayer.nickname||'';
+  document.getElementById('stat-games').textContent=myPlayer.gamesPlayed||0;
+  document.getElementById('stat-wins').textContent=myPlayer.wins||0;
+  document.getElementById('stat-losses').textContent=myPlayer.losses||0;
+  var wr=myPlayer.gamesPlayed>0?Math.round(myPlayer.wins/myPlayer.gamesPlayed*100)+'%':'—';
+  document.getElementById('stat-wr').textContent=wr;
+  document.getElementById('stat-bal').textContent='$'+(myPlayer.balance||0).toFixed(2);
+}
+function updateBalanceUI(){
+  var b='$'+(myPlayer?myPlayer.balance||0:0).toFixed(2);
+  document.getElementById('lobby-bal').textContent=b;
+  document.getElementById('profile-bal').textContent=b;
+  document.getElementById('wd-bal').textContent=b;
+  updateProfileUI();
+}
+
+// ════════════════════════════════════════════
+// PAYMENTS
+// ════════════════════════════════════════════
+function openDeposit(){
+  var addr=myPlayer&&myPlayer.depositAddress?myPlayer.depositAddress:'UQDU78cPo0yFGngpVsyjr5qcg9w3BFm_FPOMYVsk6JDMrgdu';
+  document.getElementById('ton-addr').textContent=addr;
+  if(myPlayer&&myPlayer.depositMemo){
+    document.getElementById('ton-memo').textContent=myPlayer.depositMemo;
+  } else {
+    var memo=myPlayer?('D'+String(myPlayer.id).slice(-5)).toUpperCase():'DMEMO';
+    document.getElementById('ton-memo').textContent=memo;
+    if(ws&&ws.readyState===1) wsSend({type:'getDepositInfo'});
+  }
+  showModal('modal-deposit');
+}
+function copyAddr(){
+  var a=document.getElementById('ton-addr').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(a).then(function(){
+    document.getElementById('copy-addr-btn').textContent='✅ Copied!';
+    setTimeout(function(){document.getElementById('copy-addr-btn').textContent='📋 Copy Address';},2000);
+  });
+}
+function copyMemo(){
+  var m=document.getElementById('ton-memo').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(m).then(function(){
+    document.getElementById('copy-memo-btn').textContent='✅ Copied!';
+    setTimeout(function(){document.getElementById('copy-memo-btn').textContent='📋 Copy Memo';},2000);
+  });
+}
+function openWithdraw(){
+  document.getElementById('wd-bal').textContent='$'+(myPlayer?myPlayer.balance||0:0).toFixed(2);
+  if(myPlayer&&myPlayer.tonAddress){
+    var el=document.getElementById('wd-dest');
+    if(el&&!el.value) el.value=myPlayer.tonAddress;
+  }
+  showModal('modal-withdraw');
+}
+async function initiateWithdraw(){
+  var amount=parseFloat(document.getElementById('wd-amt').value);
+  var dest=document.getElementById('wd-dest').value.trim();
+  if(!amount||amount<1) return toast(t('min-wd'));
+  if(!dest||(!dest.startsWith('UQ')&&!dest.startsWith('EQ'))) return toast('Enter valid TON address (UQ... or EQ...)');
+  if(!myPlayer||myPlayer.balance<amount) return toast(t('available')+': $'+(myPlayer?myPlayer.balance||0:0).toFixed(2));
+  try{
+    var res=await fetch(API_URL+'/withdraw',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({playerId:myPlayer.id,amount:amount,destination:dest})});
+    var d=await res.json();
+    if(d.withdrawalId){ myPlayer.balance-=amount; myPlayer.tonAddress=dest; updateBalanceUI(); hideModal('modal-withdraw'); toast('✅ '+t('request-wd')); }
+    else if(d.error) toast('⚠️ '+d.error);
+  }catch(e){ toast('Connection error'); }
+}
+
+// ════════════════════════════════════════════
+// MODALS & TOAST
+// ════════════════════════════════════════════
+function showModal(id){
+  var el=document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('hidden');
+  el.style.display='flex';
+  el.style.zIndex='99999';
+}
+function hideModal(id){
+  var el=document.getElementById(id);
+  if(!el) return;
+  el.classList.add('hidden');
+  el.style.display='none';
+  el.style.removeProperty('z-index');
+}
+var toastTimer;
+function toast(msg){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){el.classList.add('hidden');},3000);
+}
+
+// ════════════════════════════════════════════
+// OTHER PAYMENT
+// ════════════════════════════════════════════
+function showOtherPayment(){
+  hideModal('modal-deposit');
+  showModal('modal-other-pay');
+}
+
+// ════════════════════════════════════════════
+// PLAY VS FRIEND
+// ════════════════════════════════════════════
+var friendType = 'free';
+var friendStake = 1;
+var friendCode = null;
+
+function buildFriendStakeGrid(){
+  var grid = document.getElementById('friend-stake-grid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  STAKES.forEach(function(s){
+    var el = document.createElement('button');
+    el.className = 'stake-chip'+(s===friendStake?' selected':'');
+    el.innerHTML = '<div class="stake-chip-val">$'+s+'</div>';
+    el.onclick = function(){
+      friendStake = s;
+      document.querySelectorAll('#friend-stake-grid .stake-chip').forEach(function(c){c.classList.remove('selected');});
+      el.classList.add('selected');
+    };
+    grid.appendChild(el);
+  });
+}
+
+function setFriendType(type){
+  friendType = type;
+  var moneyBtn = document.getElementById('friend-type-money');
+  var freeBtn  = document.getElementById('friend-type-free');
+  var stakeRow = document.getElementById('friend-stake-row');
+  if(type==='money'){
+    if(moneyBtn) moneyBtn.className='btn btn-gold';
+    if(freeBtn)  freeBtn.className='btn btn-outline';
+    if(stakeRow){ stakeRow.style.display=''; buildFriendStakeGrid(); }
+  } else {
+    if(freeBtn)  freeBtn.className='btn btn-gold';
+    if(moneyBtn) moneyBtn.className='btn btn-outline';
+    if(stakeRow) stakeRow.style.display='none';
+  }
+  document.getElementById('friend-link-box').style.display='none';
+  friendCode = null;
+}
+
+function generateFriendLink(){
+  if(!myPlayer){ toast('Підключення...'); return; }
+  if(friendType==='money' && myPlayer.balance < friendStake){
+    hideModal('modal-friend'); openDeposit();
+    toast('Поповніть баланс для гри на гроші'); return;
+  }
+  var code = Math.floor(100000 + Math.random() * 900000).toString();
+  friendCode = code;
+  wsSend({type:'createFriendInvite', code:code, gameType:friendType, stake:friendType==='money'?friendStake:0});
+  // Show step 2 - stay in modal
+  var s1=document.getElementById('friend-step1');
+  var s2=document.getElementById('friend-step2');
+  var cd=document.getElementById('friend-code-display');
+  var iu=document.getElementById('friend-invite-url');
+  if(s1) s1.style.display='none';
+  if(s2) s2.style.display='';
+  if(cd) cd.textContent=code;
+  if(iu) iu.textContent='https://t.me/CheckersWinGameBot/CheckersWin?startapp=fri'+code;
+}
+
+function copyFriendLink(){
+  var code = document.getElementById('friend-code-display').textContent;
+  var url = 'https://t.me/CheckersWinGameBot/CheckersWin?startapp=fri'+code;
+  if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){
+    toast('📋 Посилання скопійовано!');
+  });
+}
+
+function confirmFriendGame(){
+  var code = window._pendingJoinCode;
+  if(!code){ showScreen('lobby'); return; }
+  window._pendingJoinCode = null;
+  // Show waiting
+  var titleEl = document.getElementById('t-free-title');
+  if(titleEl) titleEl.textContent = 'Підключення до друга...';
+  var waitEl = document.getElementById('free-wait-time');
+  if(waitEl) waitEl.textContent = 'Підключення...';
+  var hintEl = document.getElementById('free-wait-hint');
+  if(hintEl) hintEl.style.display = 'none';
+  showScreen('lobby');
+  showModal('modal-free-waiting');
+  isFreeGame=true; isPractice=false;
+  wsSend({type:'joinFriendInvite', code:code});
+}
+
+function cancelFriendWait(){
+  if(friendCode) wsSend({type:'cancelFriendInvite', code:friendCode});
+  friendCode = null;
+  var s1=document.getElementById('friend-step1');
+  var s2=document.getElementById('friend-step2');
+  if(s1) s1.style.display='';
+  if(s2) s2.style.display='none';
+  hideModal('modal-friend');
+}
+
+function copyFriendCode(){
+  var code = document.getElementById('friend-code-display').textContent;
+  var msg = 'Привіт! Запрошую зіграти в CheckersWin! ♟\nВідкрий @CheckersWinGameBot, натисни "Грати з другом" і введи код: ' + code;
+  if(navigator.clipboard) navigator.clipboard.writeText(msg).then(function(){toast('📋 Скопійовано! Відправ це повідомлення другу');});
+  else toast('Код: ' + code);
+}
+
+function copyFriendLink(){
+  var url = document.getElementById('friend-invite-url').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(url).then(function(){toast('📋 Скопійовано!');});
+}
+
+function joinByCode(){
+  var code = document.getElementById('friend-code-input').value.trim().replace(/\s/g,'');
+  if(!code || code.length < 4){ toast('Введи код від друга'); return; }
+  console.log('[joinByCode] code:', code);
+  hideModal('modal-friend');
+  // Show waiting modal with correct title
+  var titleEl = document.getElementById('t-free-title');
+  if(titleEl) titleEl.textContent = 'Гра з другом';
+  var waitEl = document.getElementById('free-wait-time');
+  if(waitEl) waitEl.textContent = 'Підключення до друга...';
+  var hintEl = document.getElementById('free-wait-hint');
+  if(hintEl) hintEl.style.display = 'none';
+  showModal('modal-free-waiting');
+  // Send to server
+  wsSend({type:'joinFriendInvite', code:code});
+}
+
+function shareFriendLink(){
+  var code = document.getElementById('friend-code-display').textContent;
+  // Mini App direct link - opens app with startapp param
+  var appLink = 'https://t.me/CheckersWinGameBot/CheckersWin?startapp=fri'+code;
+  var text = 'Зіграємо в шашки? Натисни посилання!';
+  var tgUrl = 'https://t.me/share/url?url='+encodeURIComponent(appLink)+'&text='+encodeURIComponent(text);
+  if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.openTelegramLink){
+    window.Telegram.WebApp.openTelegramLink(tgUrl);
+  } else {
+    navigator.clipboard&&navigator.clipboard.writeText(appLink).then(function(){toast('Посилання скопійовано!');});
+  }
+}
+
+function findGame(){
+  if(!myPlayer) return toast('Підключення...');
+  if(myPlayer.balance<selectedStake){ openDeposit(); return; }
+  wsSend({type:'findGame', stake:selectedStake});
+  showScreen('waiting');
+  document.getElementById('wait-stake').textContent='$'+selectedStake;
+  waitSecs=0;
+  if(waitTimer) clearInterval(waitTimer);
+  waitTimer=setInterval(function(){
+    waitSecs++;
+    document.getElementById('wait-time').textContent=waitSecs+'s';
+    if(waitSecs>=15){
+      clearWaitTimer();
+      wsSend({type:'cancelSearch'});
+      startMoneyBotGame(selectedStake);
+    }
+  },1000);
+}
+
+function startMoneyBotGame(stake){
+  moneyBotStake = stake;
+  moneyBotPrize = stake * 2 * 0.95;
+  isPractice=true; isFreeGame=false; myColor='white';
+  selectedPiece=null; animating=false; _lastMyTurn=null;
+  var botNick = BOT_NICKNAMES[Math.floor(Math.random()*BOT_NICKNAMES.length)];
+  if(myPlayer) myPlayer.balance -= stake;
+  updateBalanceUI();
+  document.getElementById('vs-text').textContent=(myPlayer?myPlayer.nickname:'You')+' vs '+botNick;
+  document.getElementById('cd-color').textContent=t('you-are-white')+' · $'+stake;
+  document.getElementById('pot-val').textContent='$'+moneyBotPrize.toFixed(2);
+  showScreen('countdown');
+  var count=3;
+  document.getElementById('cd-num').textContent=count;
+  var cd=setInterval(function(){
+    count--;
+    if(count>0){ document.getElementById('cd-num').textContent=count; }
+    else {
+      clearInterval(cd);
+      launchPracticeGame();
+      document.getElementById('pc-op-name').textContent=botNick;
+    }
+  },1000);
+}
+
+// Override goLobby to credit winnings for money bot game
+var _origGoLobby = goLobby;
+function findNewOpponent(){
+  hideModal('modal-gameover');
+  if(rematchTimer){clearTimeout(rematchTimer);rematchTimer=null;}
+  isPractice=false; isFreeGame=false; gameState=null;
+  selectedPiece=null; myColor=null; _lastMyTurn=null;
+  animating=false; lastMoveFrom=null; lastMoveTo=null;
+  showScreen('lobby');
+  // Auto-start search with same stake
+  setTimeout(function(){ findGame(); }, 300);
+}
+
+function requestRematch(){
+  if(!rematchOpponentId){ goLobby(); return; }
+  myRematchChoice='yes';
+  var btn=document.getElementById('go-rematch-btn');
+  if(btn){ btn.disabled=true; btn.textContent='✅ Чекаємо суперника...'; }
+  var status=document.getElementById('go-rematch-status');
+  if(status) status.textContent='⏳ Чекаємо рішення суперника...';
+  wsSend({type:'rematchRequest', opponentId:rematchOpponentId});
+}
+
+function showBotResult(won){
+  document.getElementById('result-icon').textContent = won?'🏆':'😞';
+  document.getElementById('result-title').textContent = won?t('you-won'):t('you-lost');
+  document.getElementById('result-sub').textContent = '';
+  document.getElementById('result-btn1').textContent = '🔄 Грати знову';
+  showScreen('result');
+  gameState=null;
+}
+
+
+function addToMoveHistory(color, move){
+  var num = moveHistoryList.length + 1;
+  var from = String.fromCharCode(65+(move.from.c))+''+(8-move.from.r);
+  var last = move.steps[move.steps.length-1];
+  var to   = String.fromCharCode(65+(last.c))+''+(8-last.r);
+  var isCapture = move.steps.some(function(s){return s.captured;});
+  moveHistoryList.push({num:num, color:color, from:from, to:to, isCapture:isCapture});
+  renderMoveHistory();
+}
+
+function renderMoveHistory(){
+  var el = document.getElementById('move-history-list');
+  if(!el) return;
+  var html = '';
+  var recent = moveHistoryList.slice(-10).reverse();
+  recent.forEach(function(m){
+    var dot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(m.color==='white'?'#D0C8B8':'#333')+';border:1px solid '+(m.color==='white'?'#888':'rgba(255,255,255,.2)')+';margin-right:4px"></span>';
+    html += '<div style="font-size:11px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:4px">'
+      +'<span style="color:#6C6A7A;min-width:20px">'+m.num+'.</span>'
+      +dot
+      +'<span>'+m.from+' → '+m.to+(m.isCapture?' ×':'')+'</span>'
+      +'</div>';
+  });
+  if(!html) html = '<div style="font-size:11px;color:#6C6A7A;text-align:center;padding:8px">Ходів ще немає</div>';
+  el.innerHTML = html;
+}
+
+function toggleMoveHistory(){
+  var panel = document.getElementById('move-history-panel');
+  if(!panel) return;
+  panel.style.display = panel.style.display==='none'?'':'none';
+}
+
+// ════════════════════════════════════════════
+// FRIEND INVITE ON LAUNCH
+// ════════════════════════════════════════════
+var pendingFriendCode = null;
+
+function checkInviteOnLaunch(){
+  var tg = window.Telegram&&window.Telegram.WebApp;
+  // Method 1: Telegram start_param (primary)
+  var param = (tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param)||'';
+  // Method 2: URL search params fallback
+  if(!param){
+    var urlParams = new URLSearchParams(window.location.search);
+    param = urlParams.get('startapp')||urlParams.get('start')||'';
+  }
+  // Method 3: hash fallback
+  if(!param && window.location.hash){
+    param = window.location.hash.replace('#','');
+  }
+  console.log('[Invite] start_param:', param);
+  if(param.startsWith('inv_')){
+    pendingInviteCode = param.slice(4);
+    localStorage.setItem('cw_pending_invite', pendingInviteCode);
+    console.log('[Invite] pendingInviteCode:', pendingInviteCode);
+  }
+  if(param.startsWith('fri')){
+    var fc = param.startsWith('fri_') ? param.slice(4) : param.slice(3);
+    // Only use if it's a valid 6-digit code
+    if(fc.length >= 6){
+      pendingFriendCode = fc.slice(0,6);
+      localStorage.setItem('cw_pending_friend', pendingFriendCode);
+      console.log('[Invite] pendingFriendCode:', pendingFriendCode);
+    }
+  }
+  // Restore from localStorage
+  if(!pendingInviteCode) pendingInviteCode = localStorage.getItem('cw_pending_invite');
+  if(!pendingFriendCode) pendingFriendCode = localStorage.getItem('cw_pending_friend');
+}
+
+function joinPendingInvite(){
+  console.log('[joinPendingInvite] friend:', pendingFriendCode, 'invite:', pendingInviteCode);
+  if(pendingFriendCode){
+    var fcode = pendingFriendCode;
+    pendingFriendCode = null;
+    localStorage.removeItem('cw_pending_friend');
+    console.log('[joinPendingInvite] showing confirm screen, code:', fcode);
+    // Show confirm screen - friend sees code and taps ONE button
+    var codeEl = document.getElementById('confirm-game-code');
+    if(codeEl) codeEl.textContent = fcode;
+    // Store code for confirmFriendGame
+    window._pendingJoinCode = fcode;
+    showScreen('confirm-friend');
+    return;
+  }
+  if(pendingInviteCode){
+    var code = pendingInviteCode;
+    pendingInviteCode = null;
+    localStorage.removeItem('cw_pending_invite');
+    isFreeGame=true; isPractice=false;
+    document.getElementById('free-wait-time').textContent = 'Підключення...';
+    showModal('modal-free-waiting');
+    wsSend({type:'joinInvite', code:code});
+  }
+}
+
+// Send message when WS is ready - waits up to 90 seconds (Render wakeup time)
+function sendWhenReady(msg){
+  var attempts = 0;
+  var maxAttempts = 180; // 90 seconds (500ms intervals)
+  var waitEl = document.getElementById('free-wait-time');
+  function tryNow(){
+    if(ws && ws.readyState === 1){
+      ws.send(JSON.stringify(msg));
+      if(waitEl) waitEl.textContent = 'Запит надіслано...';
+      return;
+    }
+    attempts++;
+    var secs = Math.floor(attempts * 0.5);
+    if(waitEl) waitEl.textContent = 'Сервер прокидається... ' + secs + 'с';
+    if(attempts < maxAttempts){
+      setTimeout(tryNow, 500);
+    } else {
+      toast('❌ Сервер не відповідає. Спробуйте через хвилину.');
+      hideModal('modal-free-waiting');
+    }
+  }
+  tryNow();
+}
+</script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</body>
+</html>
