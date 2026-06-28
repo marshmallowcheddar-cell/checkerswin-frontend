@@ -1515,14 +1515,19 @@ function renderBoard(){
 }
 
 function selectPieceAt(row,col){
-  if(!gameState||!gameState.myTurn||animating) return;
+  if(!gameState){ toast('ERR:noGS'); return; }
+  if(!gameState.myTurn){ toast('ERR:notMyTurn turn='+gameState.turn+' myColor='+myColor); return; }
+  if(animating){ toast('ERR:anim'); return; }
   if(selectedPiece&&selectedPiece.r===row&&selectedPiece.c===col) selectedPiece=null;
   else selectedPiece={r:row,c:col};
   renderBoard();
 }
 
 function makeMoveAt(toRow,toCol){
-  if(!selectedPiece||!gameState||!gameState.myTurn||animating) return;
+  if(!selectedPiece||!gameState||!gameState.myTurn||animating){
+    toast('move ERR sp='+!!selectedPiece+' gs='+!!gameState+' mt='+(gameState&&gameState.myTurn)+' vm='+(gameState&&(gameState.validMoves||[]).length));
+    return;
+  }
   var move=null;
   var validMoves=gameState.validMoves||[];
   // First try exact final destination
