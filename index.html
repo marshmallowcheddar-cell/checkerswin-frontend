@@ -1521,8 +1521,7 @@ function selectPieceAt(row,col){
   if(!gameState){ toast('ERR:noGS'); return; }
   if(!gameState.myTurn){ toast('ERR:notMyTurn turn='+gameState.turn+' myColor='+myColor); return; }
   if(animating){ toast('ERR:anim'); return; }
-  if(selectedPiece&&selectedPiece.r===row&&selectedPiece.c===col) selectedPiece=null;
-  else selectedPiece={r:row,c:col};
+  selectedPiece={r:row,c:col}; // Always set, never deselect by tapping same piece
   renderBoard();
 }
 
