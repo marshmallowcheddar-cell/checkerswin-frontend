@@ -1062,8 +1062,9 @@ window.onload = function(){
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
     try{ if(window.Telegram.WebApp.enableScrolling) window.Telegram.WebApp.enableScrolling(); }catch(e){}
+    // Prevent Telegram from capturing vertical swipes to drag/close the app,
+    // which lets the page content scroll normally instead.
     try{ if(window.Telegram.WebApp.disableVerticalSwipes) window.Telegram.WebApp.disableVerticalSwipes(); }catch(e){}
-    try{ if(window.Telegram.WebApp.enableVerticalSwipes) window.Telegram.WebApp.enableVerticalSwipes(); }catch(e){}
   }
   var _savedNick = localStorage.getItem('cw_nickname');
   var _tgName = (window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user&&window.Telegram.WebApp.initDataUnsafe.user.first_name)||'Player';
@@ -1291,7 +1292,10 @@ function handleMsg(msg){
 function showScreen(id){
   document.querySelectorAll('.modal-overlay').forEach(function(m){
     m.classList.add('hidden');
-    m.style.display='none';
+    // Defeat any inline display:flex!important left by showGameOver
+    m.style.removeProperty('display');
+    m.style.setProperty('display','none','important');
+    m.style.setProperty('pointer-events','none','important');
   });
   document.querySelectorAll('.screen').forEach(function(s){
     s.classList.add('hidden');
@@ -1471,7 +1475,6 @@ function renderBoard(){
   if(!gameState) return;
   // Debug: show state
   var vm=gameState.validMoves||[];
-  if(vm.length===0 && gameState.myTurn) toast('myTurn=true but 0 validMoves!');
   var board=gameState.board;
   var validMoves=gameState.validMoves||[];
   var myTurn=gameState.myTurn;
@@ -1517,20 +1520,45 @@ function renderBoard(){
         var p=document.createElement('div');
         p.className='piece '+piece.color+(piece.king?' king':'')+(isSelectable?' selectable':'');
         if(isSelectable&&myTurn){
-          (function(r,c){p.onclick=function(){selectPieceAt(r,c);};})(row,col);
+          sq.dataset.selectable='1';
+          sq.style.cursor='pointer';
         }
         sq.appendChild(p);
       } else if(isTarget){
         var dot=document.createElement('div');
         dot.className='move-dot';
-        (function(r,c){sq.onclick=function(){makeMoveAt(r,c);};})(row,col);
+        sq.dataset.target='1';
+        sq.style.cursor='pointer';
         sq.appendChild(dot);
       }
       boardEl.appendChild(sq);
     }
   }
+  bindBoardClicks();
   document.getElementById('pc-me').classList.toggle('active',myTurn);
   document.getElementById('pc-op').classList.toggle('active',!myTurn);
+}
+
+// Single delegated click handler on the board — robust against re-renders & iOS quirks
+var _boardClickBound=false;
+function bindBoardClicks(){
+  if(_boardClickBound) return;
+  var boardEl=document.getElementById('board');
+  if(!boardEl) return;
+  _boardClickBound=true;
+  boardEl.addEventListener('click',function(e){
+    var sq=e.target.closest ? e.target.closest('.sq') : null;
+    if(!sq){ var n=e.target; while(n&&n!==boardEl){ if(n.classList&&n.classList.contains('sq')){sq=n;break;} n=n.parentNode; } }
+    if(!sq) return;
+    var r=parseInt(sq.dataset.row,10);
+    var col=parseInt(sq.dataset.col,10);
+    if(isNaN(r)||isNaN(col)) return;
+    if(sq.dataset.target==='1'){
+      makeMoveAt(r,col);
+    } else if(sq.dataset.selectable==='1'){
+      selectPieceAt(r,col);
+    }
+  });
 }
 
 function selectPieceAt(row,col){
@@ -1550,7 +1578,6 @@ function makeMoveAt(toRow,toCol){
     toast('ERR sp='+!!selectedPiece+' lsp='+!!_lastSelectedPiece+' mt='+(gameState&&gameState.myTurn));
     return;
   }
-  toast('MOVE '+toRow+','+toCol+' from '+(selectedPiece?selectedPiece.r+','+selectedPiece.c:'?'));
   var move=null;
   var validMoves=gameState.validMoves||[];
   // First try exact final destination
@@ -2071,7 +2098,9 @@ function hideModal(id){
   var el=document.getElementById(id);
   if(!el) return;
   el.classList.add('hidden');
-  el.style.display='none';
+  el.style.removeProperty('display');
+  el.style.setProperty('display','none','important');
+  el.style.setProperty('pointer-events','none','important');
   el.style.removeProperty('z-index');
 }
 var toastTimer;
@@ -2428,6 +2457,6 @@ function sendWhenReady(msg){
 }
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<div id="ver-stamp" style="position:fixed;bottom:2px;right:4px;font-size:9px;color:rgba(255,255,255,.3);z-index:9999;pointer-events:none">v25</div>
+<div id="ver-stamp" style="position:fixed;bottom:2px;right:4px;font-size:9px;color:rgba(255,255,255,.3);z-index:9999;pointer-events:none">v29</div>
 </body>
 </html>
