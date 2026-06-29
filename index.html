@@ -16,6 +16,7 @@ html,body{
   margin:0;padding:0;
   background:var(--bg);color:var(--text);
   overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
   font-family:'SF Pro Display',system-ui,-apple-system,sans-serif;
   -webkit-tap-highlight-color:transparent;
   -webkit-font-smoothing:antialiased;
@@ -1303,9 +1304,10 @@ function showScreen(id){
   // Enable/disable body scrolling
   if(id==='game'){
     document.body.style.overflow='hidden';
-    if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.disableScrolling) window.Telegram.WebApp.disableScrolling();
+    document.documentElement.style.overflow='hidden';
   } else {
-    document.body.style.overflow='';
+    document.body.style.overflow='auto';
+    document.documentElement.style.overflow='auto';
     if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.enableScrolling) window.Telegram.WebApp.enableScrolling();
   }
 }
