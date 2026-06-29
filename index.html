@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CheckersWin</title>
 <style>
 :root{
@@ -1058,7 +1061,9 @@ window.onload = function(){
   if(window.Telegram&&window.Telegram.WebApp){
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
-    if(window.Telegram.WebApp.enableScrolling) window.Telegram.WebApp.enableScrolling();
+    try{ if(window.Telegram.WebApp.enableScrolling) window.Telegram.WebApp.enableScrolling(); }catch(e){}
+    try{ if(window.Telegram.WebApp.disableVerticalSwipes) window.Telegram.WebApp.disableVerticalSwipes(); }catch(e){}
+    try{ if(window.Telegram.WebApp.enableVerticalSwipes) window.Telegram.WebApp.enableVerticalSwipes(); }catch(e){}
   }
   var _savedNick = localStorage.getItem('cw_nickname');
   var _tgName = (window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user&&window.Telegram.WebApp.initDataUnsafe.user.first_name)||'Player';
@@ -2423,5 +2428,6 @@ function sendWhenReady(msg){
 }
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<div id="ver-stamp" style="position:fixed;bottom:2px;right:4px;font-size:9px;color:rgba(255,255,255,.3);z-index:9999;pointer-events:none">v25</div>
 </body>
 </html>
