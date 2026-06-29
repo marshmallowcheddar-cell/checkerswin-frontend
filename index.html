@@ -1145,9 +1145,38 @@ function connectWS(){
     };
   }catch(e){ setTimeout(connectWS,5000); }
 }
-function wsSend(msg){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(msg)); }
+var _pendingSends = [];
+function _dbg(t){
+  var d=document.getElementById('dbg-line');
+  if(!d){
+    d=document.createElement('div');
+    d.id='dbg-line';
+    d.style.cssText='position:fixed;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);color:#0f0;font-size:11px;font-family:monospace;padding:3px 6px;z-index:99998;text-align:left;white-space:pre-wrap;pointer-events:none';
+    document.body.appendChild(d);
+  }
+  d.textContent=t;
+}
+function wsSend(msg){
+  if(ws&&ws.readyState===1){
+    ws.send(JSON.stringify(msg));
+    if(msg.type==='move') _dbg('SENT move '+JSON.stringify(msg.move.from)+'→'+JSON.stringify(msg.move.steps[msg.move.steps.length-1])+' ws=1');
+  } else {
+    if(msg.type==='move'||msg.type==='resign'||msg.type==='offerDraw'){
+      _pendingSends.push(msg);
+      _dbg('QUEUED '+msg.type+' ws='+(ws?ws.readyState:'null')+' — reconnecting');
+      if(!ws||ws.readyState===3){ try{ connectWS(); }catch(e){} }
+    }
+  }
+}
+function flushPendingSends(){
+  if(!_pendingSends.length) return;
+  if(!ws||ws.readyState!==1) return;
+  var q=_pendingSends.slice(); _pendingSends=[];
+  q.forEach(function(m){ try{ ws.send(JSON.stringify(m)); }catch(e){} });
+}
 
 function handleMsg(msg){
+  try{ _dbg('recv: '+msg.type+' | ws='+(ws?ws.readyState:'null')); }catch(e){}
   switch(msg.type){
     case 'authOk':
       myPlayer = msg.player;
@@ -1170,6 +1199,8 @@ function handleMsg(msg){
       updateBalanceUI(); updateProfileUI();
       document.getElementById('nick-input').value = myPlayer.nickname||'';
       setTimeout(joinPendingInvite, 600);
+      // Flush any moves queued while disconnected
+      setTimeout(flushPendingSends, 900);
       break;
     case 'matched':
       myColor = msg.color;
@@ -1549,10 +1580,10 @@ function bindBoardClicks(){
   boardEl.addEventListener('click',function(e){
     var sq=e.target.closest ? e.target.closest('.sq') : null;
     if(!sq){ var n=e.target; while(n&&n!==boardEl){ if(n.classList&&n.classList.contains('sq')){sq=n;break;} n=n.parentNode; } }
-    if(!sq) return;
+    if(!sq){ return; }
     var r=parseInt(sq.dataset.row,10);
     var col=parseInt(sq.dataset.col,10);
-    if(isNaN(r)||isNaN(col)) return;
+    if(isNaN(r)||isNaN(col)){ return; }
     if(sq.dataset.target==='1'){
       makeMoveAt(r,col);
     } else if(sq.dataset.selectable==='1'){
@@ -2091,7 +2122,9 @@ function showModal(id){
   var el=document.getElementById(id);
   if(!el) return;
   el.classList.remove('hidden');
-  el.style.display='flex';
+  el.style.removeProperty('display');
+  el.style.setProperty('display','flex','important');
+  el.style.setProperty('pointer-events','auto','important');
   el.style.zIndex='99999';
 }
 function hideModal(id){
@@ -2457,6 +2490,6 @@ function sendWhenReady(msg){
 }
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<div id="ver-stamp" style="position:fixed;bottom:2px;right:4px;font-size:9px;color:rgba(255,255,255,.3);z-index:9999;pointer-events:none">v29</div>
+<div id="ver-stamp" style="position:fixed;bottom:2px;right:4px;font-size:9px;color:rgba(255,255,255,.3);z-index:9999;pointer-events:none">v33</div>
 </body>
 </html>
