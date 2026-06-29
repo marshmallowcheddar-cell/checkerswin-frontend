@@ -1540,9 +1540,10 @@ function makeMoveAt(toRow,toCol){
   // Restore selectedPiece from backup if needed
   if(!selectedPiece && _lastSelectedPiece) selectedPiece = _lastSelectedPiece;
   if(!selectedPiece||!gameState||!gameState.myTurn||animating){
-    toast('ERR sp='+!!selectedPiece+' mt='+(gameState&&gameState.myTurn)+' vm='+(gameState&&(gameState.validMoves||[]).length));
+    toast('ERR sp='+!!selectedPiece+' lsp='+!!_lastSelectedPiece+' mt='+(gameState&&gameState.myTurn));
     return;
   }
+  toast('MOVE '+toRow+','+toCol+' from '+(selectedPiece?selectedPiece.r+','+selectedPiece.c:'?'));
   var move=null;
   var validMoves=gameState.validMoves||[];
   // First try exact final destination
