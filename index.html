@@ -15,6 +15,7 @@
 html,body{
   margin:0;padding:0;
   background:var(--bg);color:var(--text);
+  overflow-y:auto;
   font-family:'SF Pro Display',system-ui,-apple-system,sans-serif;
   -webkit-tap-highlight-color:transparent;
   -webkit-font-smoothing:antialiased;
@@ -1299,6 +1300,14 @@ function showScreen(id){
   window.scrollTo(0,0);
   var nav=document.getElementById('main-nav');
   if(nav) nav.style.display = ['lobby','profile','rules'].indexOf(id)>=0 ? '' : 'none';
+  // Enable/disable body scrolling
+  if(id==='game'){
+    document.body.style.overflow='hidden';
+    if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.disableScrolling) window.Telegram.WebApp.disableScrolling();
+  } else {
+    document.body.style.overflow='';
+    if(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.enableScrolling) window.Telegram.WebApp.enableScrolling();
+  }
 }
 function showGameScreen(){ showScreen('game'); }
 function switchTab(id){
@@ -1522,13 +1531,16 @@ function selectPieceAt(row,col){
   if(!gameState.myTurn){ toast('ERR:notMyTurn turn='+gameState.turn+' myColor='+myColor); return; }
   if(animating){ toast('ERR:anim'); return; }
   selectedPiece={r:row,c:col};
-  toast('selected:'+row+','+col);
+  _lastSelectedPiece={r:row,c:col};
   renderBoard();
 }
 
+var _lastSelectedPiece = null;
 function makeMoveAt(toRow,toCol){
+  // Restore selectedPiece from backup if needed
+  if(!selectedPiece && _lastSelectedPiece) selectedPiece = _lastSelectedPiece;
   if(!selectedPiece||!gameState||!gameState.myTurn||animating){
-    toast('move ERR sp='+!!selectedPiece+' gs='+!!gameState+' mt='+(gameState&&gameState.myTurn)+' vm='+(gameState&&(gameState.validMoves||[]).length));
+    toast('ERR sp='+!!selectedPiece+' mt='+(gameState&&gameState.myTurn)+' vm='+(gameState&&(gameState.validMoves||[]).length));
     return;
   }
   var move=null;
@@ -1570,6 +1582,7 @@ function makeMoveAt(toRow,toCol){
     applyPracticeMove(move);
   } else {
     addToMoveHistory(myColor, move);
+    _lastSelectedPiece = null;
     wsSend({type:'move',move:move});
   }
 }
